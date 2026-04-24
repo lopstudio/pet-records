@@ -1,0 +1,853 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pet Health Log</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', system-ui, sans-serif; background: #f5f3ee; color: #2c2c2a; min-height: 100vh; }
+button { font-family: inherit; cursor: pointer; }
+input, select, textarea { font-family: inherit; }
+
+/* Header */
+.app-header { background: #fff; border-bottom: 0.5px solid #d3d1c7; padding: 1rem 2rem; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 50; }
+.app-title { font-size: 1.05rem; font-weight: 600; color: #2c2c2a; display: flex; align-items: center; gap: 10px; }
+.app-title .paw { width: 28px; height: 28px; background: #e1f5ee; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+.header-actions { display: flex; gap: 8px; }
+
+/* Layout */
+.container { max-width: 1100px; margin: 0 auto; padding: 2rem; }
+.layout { display: grid; grid-template-columns: 220px 1fr; gap: 1.5rem; align-items: start; }
+
+/* Sidebar */
+.sidebar { display: flex; flex-direction: column; gap: 0.75rem; position: sticky; top: 70px; }
+.sidebar-section-label { font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #888780; padding: 0 0.5rem; margin-bottom: 0.1rem; }
+.pet-tab { background: #fff; border: 0.5px solid #d3d1c7; border-radius: 10px; padding: 0.75rem 1rem; cursor: pointer; display: flex; align-items: center; gap: 10px; transition: all 0.15s; width: 100%; text-align: left; }
+.pet-tab:hover { border-color: #b4b2a9; background: #faf9f7; }
+.pet-tab.active { border-color: #1d9e75; background: #e1f5ee; }
+.pet-tab .pet-avatar { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+.pet-tab-name { font-size: 14px; font-weight: 600; color: #2c2c2a; }
+.pet-tab-sub { font-size: 12px; color: #888780; }
+.pet-tab.active .pet-tab-name { color: #0f6e56; }
+.add-pet-btn { border: 0.5px dashed #b4b2a9; border-radius: 10px; padding: 0.75rem 1rem; cursor: pointer; display: flex; align-items: center; gap: 8px; color: #5f5e5a; font-size: 13px; background: transparent; width: 100%; transition: 0.15s; }
+.add-pet-btn:hover { background: #fff; border-color: #888780; color: #2c2c2a; }
+.stats-box { background: #fff; border: 0.5px solid #d3d1c7; border-radius: 10px; padding: 1rem; }
+.stat-row { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; border-bottom: 0.5px solid #f1efe8; }
+.stat-row:last-child { border-bottom: none; }
+.stat-lbl { font-size: 11px; color: #888780; }
+.stat-num { font-size: 18px; font-weight: 700; color: #2c2c2a; }
+
+/* Main area */
+.main { display: flex; flex-direction: column; gap: 1.25rem; }
+
+/* Welcome */
+.welcome { background: #fff; border: 0.5px solid #d3d1c7; border-radius: 12px; padding: 4rem 2rem; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 1rem; }
+.welcome-icon { font-size: 3.5rem; }
+.welcome h2 { font-size: 1.3rem; font-weight: 600; color: #2c2c2a; }
+.welcome p { color: #888780; font-size: 13px; max-width: 320px; line-height: 1.7; }
+
+/* Pet header card */
+.pet-header-card { background: #fff; border: 0.5px solid #d3d1c7; border-radius: 12px; padding: 1.5rem; display: flex; align-items: flex-start; gap: 1.25rem; }
+.pet-header-avatar { width: 64px; height: 64px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 32px; flex-shrink: 0; }
+.pet-header-info { flex: 1; min-width: 0; }
+.pet-name-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; flex-wrap: wrap; }
+.pet-name { font-size: 1.25rem; font-weight: 600; color: #2c2c2a; }
+.pet-badge { font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 20px; }
+.badge-cat { background: #faeeda; color: #633806; }
+.badge-dog { background: #e6f1fb; color: #0c447c; }
+.badge-rabbit { background: #fbeaf0; color: #72243e; }
+.badge-bird { background: #eeedfe; color: #3c3489; }
+.badge-other { background: #f1efe8; color: #5f5e5a; }
+.pet-meta { display: flex; gap: 1.5rem; flex-wrap: wrap; }
+.meta-item { font-size: 13px; color: #5f5e5a; }
+.meta-item strong { color: #2c2c2a; font-weight: 500; }
+.meta-chip { background: #f1efe8; border-radius: 6px; padding: 4px 10px; font-size: 12px; color: #5f5e5a; }
+.alert-chip { background: #fcebeb; color: #791f1f; border-radius: 6px; padding: 4px 10px; font-size: 12px; font-weight: 500; }
+.hdr-btn-group { display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; }
+.edit-pet-btn { background: #f5f3ee; border: 0.5px solid #d3d1c7; border-radius: 8px; padding: 6px 14px; font-size: 12px; font-weight: 500; color: #2c2c2a; cursor: pointer; transition: 0.15s; }
+.edit-pet-btn:hover { background: #eeeae0; }
+.del-pet-btn { background: #fff5f5; border: 0.5px solid #f7c1c1; border-radius: 8px; padding: 6px 14px; font-size: 12px; font-weight: 500; color: #a32d2d; cursor: pointer; transition: 0.15s; }
+.del-pet-btn:hover { background: #fcebeb; }
+
+/* Section card */
+.section-card { background: #fff; border: 0.5px solid #d3d1c7; border-radius: 12px; overflow: hidden; }
+.section-tabs { display: flex; gap: 4px; padding: 0.75rem 1.25rem; border-bottom: 0.5px solid #d3d1c7; overflow-x: auto; scrollbar-width: none; }
+.section-tabs::-webkit-scrollbar { display: none; }
+.stab { padding: 5px 14px; border-radius: 20px; font-size: 12px; font-weight: 500; border: 0.5px solid transparent; color: #5f5e5a; cursor: pointer; background: none; white-space: nowrap; transition: 0.1s; }
+.stab:hover { background: #f1efe8; }
+.stab.active { background: #e1f5ee; color: #0f6e56; border-color: #9fe1cb; }
+.section-header { padding: 1rem 1.25rem; border-bottom: 0.5px solid #f1efe8; display: flex; align-items: center; justify-content: space-between; }
+.section-title { font-size: 14px; font-weight: 600; color: #2c2c2a; display: flex; align-items: center; gap: 8px; }
+.section-icon { width: 24px; height: 24px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 13px; }
+.icon-green { background: #eaf3de; }
+.icon-blue { background: #e6f1fb; }
+.icon-amber { background: #faeeda; }
+.icon-teal { background: #e1f5ee; }
+.icon-coral { background: #faece7; }
+.icon-purple { background: #eeedfe; }
+.add-row-btn { font-size: 12px; color: #1d9e75; background: none; border: none; cursor: pointer; padding: 4px 10px; border-radius: 6px; display: flex; align-items: center; gap: 4px; font-weight: 500; transition: 0.1s; }
+.add-row-btn:hover { background: #e1f5ee; }
+
+/* Table */
+.data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.data-table th { padding: 8px 1.25rem; background: #f5f3ee; text-align: left; font-weight: 500; color: #5f5e5a; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; border-bottom: 0.5px solid #d3d1c7; white-space: nowrap; }
+.data-table td { padding: 10px 1.25rem; border-bottom: 0.5px solid #f1efe8; color: #2c2c2a; vertical-align: middle; }
+.data-table tr:last-child td { border-bottom: none; }
+.data-table tr:hover td { background: #fafaf8; }
+.td-sub { font-size: 11px; color: #888780; margin-top: 2px; }
+.row-actions { display: flex; gap: 4px; opacity: 0; transition: 0.1s; }
+.data-table tr:hover .row-actions { opacity: 1; }
+.ra-btn { background: none; border: none; cursor: pointer; padding: 3px 8px; border-radius: 5px; font-size: 11px; font-weight: 500; color: #5f5e5a; transition: 0.1s; }
+.ra-btn:hover { background: #f1efe8; }
+.ra-btn.del:hover { background: #fcebeb; color: #a32d2d; }
+
+/* Pills */
+.pill { display: inline-block; padding: 2px 10px; border-radius: 20px; font-size: 11px; font-weight: 500; }
+.pill-green { background: #eaf3de; color: #3b6d11; }
+.pill-amber { background: #faeeda; color: #854f0b; }
+.pill-red { background: #fcebeb; color: #a32d2d; }
+.pill-blue { background: #e6f1fb; color: #185fa5; }
+.pill-gray { background: #f1efe8; color: #5f5e5a; }
+.pill-purple { background: #eeedfe; color: #3c3489; }
+
+/* Notes */
+.notes-grid { padding: 1rem 1.25rem; display: flex; flex-direction: column; gap: 0.75rem; }
+.note-item { background: #f5f3ee; border-radius: 8px; padding: 0.75rem 1rem; border-left: 3px solid #d3d1c7; position: relative; }
+.note-item.note-concern { border-left-color: #ef9f27; background: #fff8ee; }
+.note-item.note-good { border-left-color: #639922; background: #f2fae8; }
+.note-date { font-size: 11px; color: #888780; margin-bottom: 4px; }
+.note-text { font-size: 13px; color: #2c2c2a; line-height: 1.55; }
+.note-actions { position: absolute; top: 8px; right: 8px; display: flex; gap: 3px; opacity: 0; transition: 0.1s; }
+.note-item:hover .note-actions { opacity: 1; }
+
+/* Weight */
+.weight-section { padding: 1rem 1.25rem; }
+.weight-range-hint { font-size: 12px; color: #888780; margin-bottom: 1rem; }
+.weight-bar-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.weight-label { font-size: 12px; color: #5f5e5a; width: 64px; text-align: right; flex-shrink: 0; }
+.weight-bar-wrap { flex: 1; background: #f1efe8; border-radius: 4px; height: 20px; overflow: hidden; }
+.weight-bar { height: 100%; border-radius: 4px; display: flex; align-items: center; padding-left: 8px; font-size: 11px; font-weight: 500; color: #fff; transition: width 0.4s; min-width: 32px; }
+.bar-teal { background: #1d9e75; }
+.bar-blue { background: #378add; }
+.weight-val { font-size: 12px; color: #2c2c2a; width: 55px; flex-shrink: 0; }
+.weight-wactions { display: flex; gap: 2px; opacity: 0; transition: 0.1s; }
+.weight-bar-row:hover .weight-wactions { opacity: 1; }
+.metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 0.75rem; margin-top: 1.25rem; }
+.metric-card { background: #f5f3ee; border-radius: 8px; padding: 0.75rem 1rem; }
+.mc-label { font-size: 11px; color: #888780; margin-bottom: 4px; }
+.mc-value { font-size: 20px; font-weight: 600; color: #2c2c2a; margin-bottom: 2px; }
+.mc-sub { font-size: 11px; }
+
+/* Contacts */
+.contacts-grid { padding: 1rem 1.25rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.75rem; }
+.contact-card { background: #f5f3ee; border-radius: 8px; padding: 0.75rem 1rem; position: relative; }
+.contact-type { font-size: 10px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: #888780; margin-bottom: 4px; }
+.contact-name { font-size: 13px; font-weight: 600; color: #2c2c2a; margin-bottom: 2px; }
+.contact-phone { font-size: 12px; color: #1d9e75; font-weight: 500; margin-bottom: 2px; }
+.contact-note { font-size: 11px; color: #888780; }
+.contact-actions { position: absolute; top: 8px; right: 8px; display: flex; gap: 3px; opacity: 0; transition: 0.1s; }
+.contact-card:hover .contact-actions { opacity: 1; }
+
+/* Tips */
+.tips-section { background: #e1f5ee; border: 0.5px solid #5dcaa5; border-radius: 12px; padding: 1.25rem; }
+.tips-title { font-size: 13px; font-weight: 600; color: #085041; margin-bottom: 0.75rem; }
+.tips-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.5rem; }
+.tip-item { display: flex; align-items: flex-start; gap: 8px; font-size: 12px; color: #0f6e56; }
+.tip-icon { color: #1d9e75; font-weight: 700; flex-shrink: 0; margin-top: 1px; }
+
+/* Backup banner */
+.backup-banner { background: #fff8ee; border: 0.5px solid #f5c475; border-radius: 10px; padding: 0.75rem 1.25rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem; font-size: 12px; color: #633806; }
+
+/* Empty state */
+.empty-state { padding: 2.5rem; text-align: center; color: #b4b2a9; font-size: 13px; }
+.empty-state .empty-icon { font-size: 2rem; margin-bottom: 0.5rem; }
+
+/* Buttons */
+.btn { padding: 7px 14px; border-radius: 8px; font-size: 13px; font-weight: 500; border: 0.5px solid #d3d1c7; background: #fff; color: #2c2c2a; cursor: pointer; transition: 0.15s; }
+.btn:hover { background: #f5f3ee; }
+.btn-primary { background: #1d9e75; border-color: #1d9e75; color: #fff; }
+.btn-primary:hover { background: #0f6e56; }
+.btn-danger { background: #e24b4a; border-color: #e24b4a; color: #fff; }
+.btn-danger:hover { background: #a32d2d; }
+.btn-sm { padding: 5px 12px; font-size: 12px; }
+
+/* Modal */
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.45); display: none; align-items: center; justify-content: center; z-index: 1000; padding: 1rem; }
+.modal-overlay.open { display: flex; }
+.modal { background: #fff; border-radius: 14px; width: 100%; max-width: 520px; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.2); }
+.modal-header { padding: 1.25rem 1.5rem; border-bottom: 0.5px solid #f1efe8; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; background: #fff; z-index: 1; }
+.modal-title { font-size: 15px; font-weight: 700; color: #2c2c2a; }
+.modal-close { background: #f5f3ee; border: none; width: 28px; height: 28px; border-radius: 50%; font-size: 14px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: 0.1s; line-height: 1; }
+.modal-close:hover { background: #e8e5de; }
+.modal-body { padding: 1.5rem; }
+.modal-footer { padding: 1rem 1.5rem; border-top: 0.5px solid #f1efe8; display: flex; justify-content: flex-end; gap: 8px; }
+
+/* Forms */
+.form-grid { display: grid; gap: 1rem; }
+.form-2 { grid-template-columns: 1fr 1fr; }
+.form-group { display: flex; flex-direction: column; gap: 5px; }
+.form-group.span2 { grid-column: span 2; }
+label { font-size: 12px; font-weight: 600; color: #5f5e5a; }
+.req { color: #e24b4a; }
+input[type=text], input[type=date], input[type=number], input[type=tel], select, textarea { width: 100%; padding: 8px 12px; border: 0.5px solid #d3d1c7; border-radius: 8px; font-size: 13px; color: #2c2c2a; background: #fff; outline: none; transition: border 0.1s; }
+input:focus, select:focus, textarea:focus { border-color: #1d9e75; box-shadow: 0 0 0 3px rgba(29,158,117,0.1); }
+textarea { resize: vertical; min-height: 78px; line-height: 1.5; }
+.hint { font-size: 11px; color: #888780; }
+.emoji-picker { display: flex; gap: 8px; flex-wrap: wrap; }
+.emoji-opt { width: 40px; height: 40px; border-radius: 10px; border: 1.5px solid #d3d1c7; background: #f5f3ee; font-size: 22px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: 0.1s; }
+.emoji-opt:hover { border-color: #9fe1cb; }
+.emoji-opt.sel { border-color: #1d9e75; background: #e1f5ee; }
+.color-picker { display: flex; gap: 10px; flex-wrap: wrap; padding: 2px 0; }
+.color-opt { width: 26px; height: 26px; border-radius: 50%; border: 2.5px solid transparent; cursor: pointer; transition: 0.15s; }
+.color-opt.sel { border-color: #2c2c2a; transform: scale(1.15); }
+.confirm-icon { font-size: 2.5rem; text-align: center; margin-bottom: 0.75rem; }
+.confirm-msg { text-align: center; color: #5f5e5a; font-size: 14px; line-height: 1.65; margin-bottom: 1.25rem; }
+
+@media (max-width: 700px) {
+  .layout { grid-template-columns: 1fr; }
+  .sidebar { position: static; }
+  .form-2 { grid-template-columns: 1fr; }
+  .form-group.span2 { grid-column: span 1; }
+}
+</style>
+</head>
+<body>
+
+<div class="app-header">
+  <div class="app-title"><div class="paw">🐾</div>Pet Health Log</div>
+  <div class="header-actions">
+    <button class="btn btn-sm" onclick="document.getElementById('importInput').click()">⬆ Import backup</button>
+    <button class="btn btn-sm" onclick="exportData()">⬇ Export backup</button>
+    <button class="btn btn-primary btn-sm" onclick="openPetModal()">+ Add pet</button>
+  </div>
+</div>
+
+<div class="container">
+  <div class="layout">
+    <div class="sidebar" id="sidebar"></div>
+    <div class="main" id="main"></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modalOverlay" onclick="handleOverlayClick(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="modalTitle"></span>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+    <div class="modal-footer" id="modalFooter"></div>
+  </div>
+</div>
+
+<input type="file" id="importInput" accept=".json" style="display:none" onchange="importData(this)">
+
+<script>
+// ── CONSTANTS ─────────────────────────────────────────────────
+const EMOJIS = ['🐱','🐶','🐰','🐹','🦜','🐠','🐍','🦊','🐻','🐾','🦎','🐢','🐦','🐓','🦩'];
+const BG_COLORS = ['#eaf3de','#e6f1fb','#fbeaf0','#faeeda','#eeedfe','#e1f5ee','#faece7','#f1efe8'];
+const SPECIES = ['Cat','Dog','Rabbit','Bird','Fish','Hamster','Guinea Pig','Reptile','Other'];
+const TABS = [
+  { id:'vaccinations', label:'Vaccinations',     icon:'💉', icnCls:'icon-green'  },
+  { id:'medications',  label:'Medications',       icon:'💊', icnCls:'icon-blue'   },
+  { id:'vetVisits',    label:'Vet visits',         icon:'🏥', icnCls:'icon-teal'   },
+  { id:'weight',       label:'Weight & metrics',   icon:'⚖️', icnCls:'icon-amber'  },
+  { id:'notes',        label:'Health notes',       icon:'📋', icnCls:'icon-coral'  },
+  { id:'contacts',     label:'Emergency contacts', icon:'📞', icnCls:'icon-purple' },
+];
+
+// ── STATE ─────────────────────────────────────────────────────
+let state = { pets: [], activePetId: null };
+let activeTab = 'vaccinations';
+let modalCtx = {};
+
+function loadState() {
+  try { const r = localStorage.getItem('petHealthLog_v3'); if (r) state = JSON.parse(r); } catch(e) {}
+}
+function saveState() { localStorage.setItem('petHealthLog_v3', JSON.stringify(state)); }
+function genId() { return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+function getActivePet() { return state.pets.find(p => p.id === state.activePetId) || null; }
+
+// ── UTILS ─────────────────────────────────────────────────────
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;'); }
+function today() { return new Date().toISOString().split('T')[0]; }
+function fmt(d) {
+  if (!d) return '—';
+  const dt = new Date(d + 'T12:00:00');
+  return isNaN(dt) ? d : dt.toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' });
+}
+function fmtShort(d) {
+  if (!d) return '—';
+  const dt = new Date(d + 'T12:00:00');
+  return isNaN(dt) ? d : dt.toLocaleDateString('en-GB', { month:'short', year:'numeric' });
+}
+function petAge(bd) {
+  if (!bd) return '—';
+  const diff = Date.now() - new Date(bd);
+  const y = Math.floor(diff / (365.25 * 864e5));
+  const m = Math.floor((diff % (365.25 * 864e5)) / (30.44 * 864e5));
+  if (y < 1) return m < 1 ? '< 1 mo' : `${m} mo`;
+  return `${y} yr${y > 1 ? 's' : ''}`;
+}
+function vacStatus(nextDue) {
+  if (!nextDue) return { label:'No due date', cls:'pill-gray' };
+  const days = Math.round((new Date(nextDue) - new Date()) / 864e5);
+  if (days < 0)   return { label:'Overdue',  cls:'pill-red'   };
+  if (days <= 30) return { label:'Due soon', cls:'pill-amber' };
+  return { label:'Current', cls:'pill-green' };
+}
+function medStatusCls(s) {
+  return { active:'pill-green', prn:'pill-blue', completed:'pill-gray', discontinued:'pill-red' }[s] || 'pill-gray';
+}
+function visitTypeCls(t) {
+  return { annual:'pill-green', checkup:'pill-green', sick:'pill-amber', booster:'pill-blue', dental:'pill-purple', emergency:'pill-red' }[t] || 'pill-gray';
+}
+function speciesBadge(sp) {
+  return { Cat:'badge-cat', Dog:'badge-dog', Rabbit:'badge-rabbit', Bird:'badge-bird' }[sp] || 'badge-other';
+}
+
+// ── RENDER: SIDEBAR ───────────────────────────────────────────
+function renderSidebar() {
+  const upcoming  = state.pets.flatMap(p => p.vetVisits||[]).filter(v => v.date >= today()).length;
+  const activeMeds = state.pets.flatMap(p => p.medications||[]).filter(m => m.status === 'active').length;
+  document.getElementById('sidebar').innerHTML = `
+    <div class="sidebar-section-label">My pets</div>
+    ${state.pets.map(p => `
+      <button class="pet-tab ${p.id === state.activePetId ? 'active' : ''}" onclick="selectPet('${p.id}')">
+        <div class="pet-avatar" style="background:${p.bgColor||'#eaf3de'}">${p.emoji||'🐾'}</div>
+        <div>
+          <div class="pet-tab-name">${esc(p.name)}</div>
+          <div class="pet-tab-sub">${esc(p.species||'')}${p.birthdate ? ' · ' + petAge(p.birthdate) : ''}</div>
+        </div>
+      </button>`).join('')}
+    <button class="add-pet-btn" onclick="openPetModal()"><span style="font-size:16px">+</span> Add a pet</button>
+    <div style="margin-top:4px"></div>
+    <div class="sidebar-section-label">Overview</div>
+    <div class="stats-box">
+      <div class="stat-row"><span class="stat-lbl">Total pets</span><span class="stat-num">${state.pets.length}</span></div>
+      <div class="stat-row"><span class="stat-lbl">Upcoming visits</span><span class="stat-num">${upcoming}</span></div>
+      <div class="stat-row"><span class="stat-lbl">Active meds</span><span class="stat-num">${activeMeds}</span></div>
+    </div>`;
+}
+
+// ── RENDER: MAIN ──────────────────────────────────────────────
+function renderMain() {
+  const pet = getActivePet();
+  if (!pet) {
+    document.getElementById('main').innerHTML = `
+      <div class="welcome">
+        <div class="welcome-icon">🐾</div>
+        <h2>Welcome to Pet Health Log</h2>
+        <p>Track vaccinations, medications, vet visits, weight, and more — all in one place.</p>
+        <button class="btn btn-primary" onclick="openPetModal()">+ Add your first pet</button>
+      </div>`;
+    return;
+  }
+  const conds = (pet.conditions||[]).filter(Boolean);
+  const lastExport = localStorage.getItem('petLog_lastExport');
+  const daysSince = lastExport ? Math.floor((Date.now()-parseInt(lastExport))/864e5) : 999;
+  const banner = daysSince >= 7 ? `
+    <div class="backup-banner">
+      <span>⚠ <strong>Backup reminder:</strong> Export your data so it's safe if you ever clear your browser cache.</span>
+      <button class="btn btn-sm" onclick="exportData()">Export now</button>
+    </div>` : '';
+
+  document.getElementById('main').innerHTML = `
+    <div class="pet-header-card">
+      <div class="pet-header-avatar" style="background:${pet.bgColor||'#eaf3de'}">${pet.emoji||'🐾'}</div>
+      <div class="pet-header-info">
+        <div class="pet-name-row">
+          <span class="pet-name">${esc(pet.name)}</span>
+          ${pet.species ? `<span class="pet-badge ${speciesBadge(pet.species)}">${esc(pet.species)}</span>` : ''}
+          ${pet.breed   ? `<span class="meta-chip">${esc(pet.breed)}</span>` : ''}
+          ${pet.sex     ? `<span class="meta-chip">${esc(pet.sex)}</span>` : ''}
+          ${conds.map(c => `<span class="alert-chip">⚠ ${esc(c)}</span>`).join('')}
+        </div>
+        <div class="pet-meta">
+          ${pet.birthdate ? `<div class="meta-item"><strong>Born:</strong> ${fmt(pet.birthdate)}</div>` : ''}
+          ${pet.birthdate ? `<div class="meta-item"><strong>Age:</strong> ${petAge(pet.birthdate)}</div>` : ''}
+          ${pet.microchip ? `<div class="meta-item"><strong>Microchip:</strong> ${esc(pet.microchip)}</div>` : ''}
+          ${pet.vet       ? `<div class="meta-item"><strong>Vet:</strong> ${esc(pet.vet)}</div>` : ''}
+          ${pet.insurance ? `<div class="meta-item"><strong>Insurance:</strong> ${esc(pet.insurance)}</div>` : ''}
+        </div>
+      </div>
+      <div class="hdr-btn-group">
+        <button class="edit-pet-btn" onclick="openPetModal('${pet.id}')">✏ Edit pet</button>
+        <button class="del-pet-btn"  onclick="confirmDeletePet('${pet.id}')">🗑 Remove</button>
+      </div>
+    </div>
+
+    <div class="section-card">
+      <div class="section-tabs">
+        ${TABS.map(t => `<button class="stab ${activeTab===t.id?'active':''}" onclick="switchTab('${t.id}')">${t.label}</button>`).join('')}
+      </div>
+      <div id="tabContent"></div>
+    </div>
+
+    ${banner}
+
+    <div class="tips-section">
+      <div class="tips-title">💡 Tips for keeping this log up to date</div>
+      <div class="tips-list">
+        <div class="tip-item"><span class="tip-icon">→</span> Update weight monthly and after every vet visit.</div>
+        <div class="tip-item"><span class="tip-icon">→</span> Log any behavioral changes promptly — even small ones.</div>
+        <div class="tip-item"><span class="tip-icon">→</span> Export a backup before clearing browser cache.</div>
+        <div class="tip-item"><span class="tip-icon">→</span> Set reminders for upcoming vaccine due dates.</div>
+        <div class="tip-item"><span class="tip-icon">→</span> Keep emergency contacts updated year-round.</div>
+        <div class="tip-item"><span class="tip-icon">→</span> Archive completed medications instead of deleting them.</div>
+      </div>
+    </div>`;
+
+  renderTabContent(pet);
+}
+
+function renderTabContent(pet) {
+  const el = document.getElementById('tabContent');
+  if (!el) return;
+  const map = { vaccinations, medications, vetVisits, weight, notes, contacts };
+  el.innerHTML = (map[activeTab] || (() => ''))(pet);
+}
+
+// ── VACCINATIONS ──────────────────────────────────────────────
+function vaccinations(pet) {
+  const items = pet.vaccinations || [];
+  const hdr = secHeader('💉','icon-green','Vaccination record','vaccination','Add vaccine');
+  if (!items.length) return hdr + emptyState('💉','No vaccinations logged yet');
+  const rows = items.map(v => {
+    const st = vacStatus(v.nextDue);
+    return `<tr>
+      <td><strong>${esc(v.name)}</strong>${v.description?`<div class="td-sub">${esc(v.description)}</div>`:''}</td>
+      <td>${fmt(v.dateGiven)}</td><td>${esc(v.vet||'—')}</td>
+      <td>${v.nextDue ? fmt(v.nextDue) : '—'}</td>
+      <td><span class="pill ${st.cls}">${st.label}</span></td>
+      <td><div class="row-actions">
+        <button class="ra-btn" onclick="openRecordModal('vaccination','${v.id}')">✏ Edit</button>
+        <button class="ra-btn del" onclick="confirmDeleteRecord('vaccination','${v.id}')">✕</button>
+      </div></td></tr>`;
+  }).join('');
+  return hdr + `<div style="overflow-x:auto"><table class="data-table"><thead><tr>
+    <th>Vaccine</th><th>Date given</th><th>Administered by</th><th>Next due</th><th>Status</th><th></th>
+  </tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+
+// ── MEDICATIONS ───────────────────────────────────────────────
+function medications(pet) {
+  const items = pet.medications || [];
+  const hdr = secHeader('💊','icon-blue','Medications','medication','Add medication');
+  if (!items.length) return hdr + emptyState('💊','No medications logged yet');
+  const rows = items.map(m => `<tr>
+    <td><strong>${esc(m.name)}</strong>${m.purpose?`<div class="td-sub">${esc(m.purpose)}</div>`:''}</td>
+    <td>${esc(m.dosage||'—')}</td><td>${esc(m.frequency||'—')}</td>
+    <td>${m.startDate||m.endDate ? `${fmt(m.startDate)}${m.endDate?' – '+fmt(m.endDate):''}` : 'Ongoing'}</td>
+    <td><span class="pill ${medStatusCls(m.status)}">${esc(m.status||'active')}</span></td>
+    <td><div class="row-actions">
+      <button class="ra-btn" onclick="openRecordModal('medication','${m.id}')">✏ Edit</button>
+      <button class="ra-btn del" onclick="confirmDeleteRecord('medication','${m.id}')">✕</button>
+    </div></td></tr>`).join('');
+  return hdr + `<div style="overflow-x:auto"><table class="data-table"><thead><tr>
+    <th>Medication</th><th>Dosage</th><th>Frequency</th><th>Duration</th><th>Status</th><th></th>
+  </tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+
+// ── VET VISITS ────────────────────────────────────────────────
+function vetVisits(pet) {
+  const items = [...(pet.vetVisits||[])].sort((a,b) => (b.date||'').localeCompare(a.date||''));
+  const hdr = secHeader('🏥','icon-teal','Vet visit history','vetVisit','Log visit');
+  if (!items.length) return hdr + emptyState('🏥','No vet visits logged yet');
+  const rows = items.map(v => {
+    const upcoming = v.date >= today();
+    return `<tr>
+      <td><strong>${fmt(v.date)}</strong>${upcoming?` <span style="font-size:11px;color:#1d9e75">(upcoming)</span>`:''}</td>
+      <td><span class="pill ${visitTypeCls(v.type)}">${esc(v.type||'visit')}</span></td>
+      <td>${esc(v.vet||'—')}${v.clinic?`<div class="td-sub">${esc(v.clinic)}</div>`:''}</td>
+      <td>${v.weight ? v.weight+' '+esc(v.weightUnit||'kg') : '—'}</td>
+      <td style="max-width:180px">${esc(v.summary||'—')}</td>
+      <td><div class="row-actions">
+        <button class="ra-btn" onclick="openRecordModal('vetVisit','${v.id}')">✏ Edit</button>
+        <button class="ra-btn del" onclick="confirmDeleteRecord('vetVisit','${v.id}')">✕</button>
+      </div></td></tr>`;
+  }).join('');
+  return hdr + `<div style="overflow-x:auto"><table class="data-table"><thead><tr>
+    <th>Date</th><th>Type</th><th>Vet / Clinic</th><th>Weight</th><th>Summary</th><th></th>
+  </tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+
+// ── WEIGHT ────────────────────────────────────────────────────
+function weight(pet) {
+  const items = [...(pet.weightLogs||[])].sort((a,b) => (a.date||'').localeCompare(b.date||''));
+  const hdr = secHeader('⚖️','icon-amber','Weight & health metrics','weightLog','Log weight');
+  if (!items.length) return hdr + emptyState('⚖️','No weight entries yet');
+  const vals = items.map(w => parseFloat(w.weight)||0).filter(Boolean);
+  const maxW = Math.max(...vals);
+  const latest = items[items.length-1];
+  const prev   = items[items.length-2];
+  const change = prev ? (parseFloat(latest.weight)-parseFloat(prev.weight)).toFixed(2) : null;
+  const unit   = latest.unit || 'kg';
+  const bars   = items.slice(-10).map((w,i) => {
+    const pct = maxW ? Math.round((parseFloat(w.weight)/maxW)*95) : 50;
+    return `<div class="weight-bar-row">
+      <div class="weight-label">${fmtShort(w.date)}</div>
+      <div class="weight-bar-wrap"><div class="weight-bar ${i%2===0?'bar-teal':'bar-blue'}" style="width:${pct}%">${w.weight}</div></div>
+      <div class="weight-val">${esc(w.weight)} ${esc(w.unit||'kg')}</div>
+      <div class="weight-wactions">
+        <button class="ra-btn" onclick="openRecordModal('weightLog','${w.id}')">✏</button>
+        <button class="ra-btn del" onclick="confirmDeleteRecord('weightLog','${w.id}')">✕</button>
+      </div></div>`;
+  }).join('');
+  const chgColor = change===null?'':parseFloat(change)>0?'color:#e24b4a':parseFloat(change)<0?'color:#1d9e75':'';
+  const metrics = `<div class="metrics-grid">
+    <div class="metric-card"><div class="mc-label">Current weight</div>
+      <div class="mc-value">${esc(latest.weight)} ${unit}</div>
+      <div class="mc-sub" style="color:#888780">${fmt(latest.date)}</div></div>
+    ${change!==null?`<div class="metric-card"><div class="mc-label">Change</div>
+      <div class="mc-value" style="${chgColor}">${parseFloat(change)>0?'+':''}${change} ${unit}</div>
+      <div class="mc-sub" style="color:#888780">vs previous entry</div></div>`:''}
+    <div class="metric-card"><div class="mc-label">Total entries</div>
+      <div class="mc-value">${items.length}</div>
+      <div class="mc-sub" style="color:#888780">weight records</div></div>
+    ${pet.microchip?`<div class="metric-card"><div class="mc-label">Microchip</div>
+      <div class="mc-value" style="font-size:13px">${esc(pet.microchip)}</div>
+      <div class="mc-sub" style="color:#639922">Registered ✓</div></div>`:''}
+  </div>`;
+  return hdr + `<div class="weight-section">
+    <div class="weight-range-hint">Weight over time (${unit}) — last ${Math.min(items.length,10)} entries</div>
+    ${bars}</div>${metrics}`;
+}
+
+// ── NOTES ─────────────────────────────────────────────────────
+function notes(pet) {
+  const items = [...(pet.healthNotes||[])].sort((a,b) => (b.date||'').localeCompare(a.date||''));
+  const hdr = secHeader('📋','icon-coral','Behavioral & health notes','healthNote','Add note');
+  if (!items.length) return hdr + emptyState('📋','No health notes yet');
+  return hdr + `<div class="notes-grid">${items.map(n => `
+    <div class="note-item ${n.type==='good'?'note-good':n.type==='concern'?'note-concern':''}">
+      <div class="note-actions">
+        <button class="ra-btn" onclick="openRecordModal('healthNote','${n.id}')">✏ Edit</button>
+        <button class="ra-btn del" onclick="confirmDeleteRecord('healthNote','${n.id}')">✕</button>
+      </div>
+      <div class="note-date">${fmt(n.date)}</div>
+      <div class="note-text">${esc(n.text)}</div>
+    </div>`).join('')}</div>`;
+}
+
+// ── CONTACTS ──────────────────────────────────────────────────
+function contacts(pet) {
+  const items = pet.contacts || [];
+  const hdr = secHeader('📞','icon-purple','Emergency contacts','contact','Add contact');
+  if (!items.length) return hdr + emptyState('📞','No emergency contacts added yet');
+  return hdr + `<div class="contacts-grid">${items.map(c => `
+    <div class="contact-card">
+      <div class="contact-actions">
+        <button class="ra-btn" onclick="openRecordModal('contact','${c.id}')">✏</button>
+        <button class="ra-btn del" onclick="confirmDeleteRecord('contact','${c.id}')">✕</button>
+      </div>
+      <div class="contact-type">${esc(c.type||'Contact')}</div>
+      <div class="contact-name">${esc(c.name)}</div>
+      ${c.phone?`<div class="contact-phone">${esc(c.phone)}</div>`:''}
+      ${c.hours?`<div class="contact-note">${esc(c.hours)}</div>`:''}
+      ${c.notes?`<div class="contact-note">${esc(c.notes)}</div>`:''}
+    </div>`).join('')}</div>`;
+}
+
+// ── HELPERS ───────────────────────────────────────────────────
+function secHeader(icon, iconCls, title, section, btnLabel) {
+  return `<div class="section-header">
+    <div class="section-title"><div class="section-icon ${iconCls}">${icon}</div>${title}</div>
+    <button class="add-row-btn" onclick="openAddModal('${section}')">+ ${btnLabel}</button>
+  </div>`;
+}
+function emptyState(icon, msg) {
+  return `<div class="empty-state"><div class="empty-icon">${icon}</div><p>${msg}</p></div>`;
+}
+
+// ── MODAL ─────────────────────────────────────────────────────
+function openModal(title, body, footer) {
+  document.getElementById('modalTitle').textContent = title;
+  document.getElementById('modalBody').innerHTML = body;
+  document.getElementById('modalFooter').innerHTML = footer;
+  document.getElementById('modalOverlay').classList.add('open');
+}
+function closeModal() { document.getElementById('modalOverlay').classList.remove('open'); modalCtx = {}; }
+function handleOverlayClick(e) { if (e.target === document.getElementById('modalOverlay')) closeModal(); }
+
+// ── PET FORM ──────────────────────────────────────────────────
+function openPetModal(petId) {
+  const pet = petId ? state.pets.find(p => p.id === petId) : null;
+  modalCtx = { type:'pet', petId: petId||null };
+  const selEmoji = pet?.emoji || EMOJIS[0];
+  const selBg    = pet?.bgColor || BG_COLORS[0];
+  openModal(pet ? 'Edit pet' : 'Add new pet', `
+    <input type="hidden" id="f_emoji" value="${selEmoji}">
+    <input type="hidden" id="f_bgColor" value="${selBg}">
+    <div class="form-grid form-2">
+      <div class="form-group span2"><label>Avatar</label>
+        <div class="emoji-picker">${EMOJIS.map(e=>`<span class="emoji-opt ${e===selEmoji?'sel':''}" onclick="pickEmoji(this,'${e}')">${e}</span>`).join('')}</div>
+      </div>
+      <div class="form-group span2"><label>Background color</label>
+        <div class="color-picker">${BG_COLORS.map(c=>`<span class="color-opt ${c===selBg?'sel':''}" onclick="pickColor(this,'${c}')" style="background:${c}"></span>`).join('')}</div>
+      </div>
+      <div class="form-group"><label>Name <span class="req">*</span></label>
+        <input type="text" id="f_name" value="${esc(pet?.name||'')}" placeholder="e.g. Fluffy"></div>
+      <div class="form-group"><label>Species</label>
+        <select id="f_species">${SPECIES.map(s=>`<option ${pet?.species===s?'selected':''}>${s}</option>`).join('')}</select></div>
+      <div class="form-group"><label>Breed</label>
+        <input type="text" id="f_breed" value="${esc(pet?.breed||'')}" placeholder="e.g. Domestic Shorthair"></div>
+      <div class="form-group"><label>Birthdate</label>
+        <input type="date" id="f_birthdate" value="${pet?.birthdate||''}"></div>
+      <div class="form-group"><label>Sex / reproductive status</label>
+        <input type="text" id="f_sex" value="${esc(pet?.sex||'')}" placeholder="e.g. Spayed female"></div>
+      <div class="form-group"><label>Microchip ID</label>
+        <input type="text" id="f_microchip" value="${esc(pet?.microchip||'')}" placeholder="e.g. 123456789"></div>
+      <div class="form-group"><label>Primary vet</label>
+        <input type="text" id="f_vet" value="${esc(pet?.vet||'')}" placeholder="Dr. Name"></div>
+      <div class="form-group"><label>Insurance policy</label>
+        <input type="text" id="f_insurance" value="${esc(pet?.insurance||'')}" placeholder="Policy #"></div>
+      <div class="form-group span2"><label>Ongoing conditions <span class="hint">(one per line)</span></label>
+        <textarea id="f_conditions" placeholder="e.g. Seasonal allergies&#10;Arthritis">${(pet?.conditions||[]).join('\n')}</textarea></div>
+    </div>`,
+    `<button class="btn" onclick="closeModal()">Cancel</button>
+     <button class="btn btn-primary" onclick="savePetForm()">${pet ? 'Save changes' : 'Add pet'}</button>`);
+}
+function pickEmoji(el, v) { document.getElementById('f_emoji').value=v; el.closest('.emoji-picker').querySelectorAll('.emoji-opt').forEach(e=>e.classList.remove('sel')); el.classList.add('sel'); }
+function pickColor(el, v) { document.getElementById('f_bgColor').value=v; el.closest('.color-picker').querySelectorAll('.color-opt').forEach(e=>e.classList.remove('sel')); el.classList.add('sel'); }
+function savePetForm() {
+  const name = document.getElementById('f_name').value.trim();
+  if (!name) { alert('Name is required'); return; }
+  const data = {
+    name, emoji:document.getElementById('f_emoji').value, bgColor:document.getElementById('f_bgColor').value,
+    species:document.getElementById('f_species').value, breed:document.getElementById('f_breed').value.trim(),
+    birthdate:document.getElementById('f_birthdate').value, sex:document.getElementById('f_sex').value.trim(),
+    microchip:document.getElementById('f_microchip').value.trim(), vet:document.getElementById('f_vet').value.trim(),
+    insurance:document.getElementById('f_insurance').value.trim(),
+    conditions:document.getElementById('f_conditions').value.split('\n').map(s=>s.trim()).filter(Boolean)
+  };
+  if (modalCtx.petId) { Object.assign(state.pets.find(p=>p.id===modalCtx.petId), data); }
+  else { const pet={id:genId(),vaccinations:[],medications:[],vetVisits:[],weightLogs:[],healthNotes:[],contacts:[],...data}; state.pets.push(pet); state.activePetId=pet.id; }
+  saveState(); closeModal(); renderAll();
+}
+
+// ── RECORD FORMS ──────────────────────────────────────────────
+const RECORD_FORMS = {
+  vaccination:{ title:'Vaccination', fields:[
+    {id:'name',label:'Vaccine name',type:'text',req:true,ph:'e.g. FVRCP, Rabies',full:true},
+    {id:'description',label:'Description',type:'text',ph:'e.g. Core — 3-year booster',full:true},
+    {id:'dateGiven',label:'Date given',type:'date',req:true},
+    {id:'nextDue',label:'Next due date',type:'date'},
+    {id:'vet',label:'Administered by',type:'text',ph:'Dr. Name / Clinic',full:true},
+    {id:'notes',label:'Notes',type:'textarea',full:true},
+  ]},
+  medication:{ title:'Medication', fields:[
+    {id:'name',label:'Medication name',type:'text',req:true,ph:'e.g. Frontline Plus'},
+    {id:'dosage',label:'Dosage',type:'text',ph:'e.g. 0.5 mL'},
+    {id:'frequency',label:'Frequency',type:'text',ph:'e.g. Monthly, Daily'},
+    {id:'status',label:'Status',type:'select',opts:['active','prn','completed','discontinued']},
+    {id:'startDate',label:'Start date',type:'date'},
+    {id:'endDate',label:'End date',type:'date'},
+    {id:'purpose',label:'Purpose / notes',type:'textarea',full:true},
+  ]},
+  vetVisit:{ title:'Vet visit', fields:[
+    {id:'date',label:'Date',type:'date',req:true},
+    {id:'type',label:'Visit type',type:'select',opts:['annual','checkup','sick','booster','dental','emergency','other']},
+    {id:'vet',label:'Vet name',type:'text',ph:'Dr. Name'},
+    {id:'clinic',label:'Clinic',type:'text',ph:'Clinic name'},
+    {id:'weight',label:'Weight at visit',type:'number',ph:'e.g. 4.2'},
+    {id:'weightUnit',label:'Unit',type:'select',opts:['kg','lbs','g']},
+    {id:'summary',label:'Visit summary',type:'textarea',full:true,ph:'What was discussed or diagnosed'},
+    {id:'followUp',label:'Follow-up',type:'text',full:true,ph:'e.g. Return if no improvement in 7 days'},
+  ]},
+  weightLog:{ title:'Weight log', fields:[
+    {id:'date',label:'Date',type:'date',req:true},
+    {id:'weight',label:'Weight',type:'number',req:true,ph:'e.g. 4.2'},
+    {id:'unit',label:'Unit',type:'select',opts:['kg','lbs','g']},
+    {id:'notes',label:'Notes',type:'text',full:true,ph:'e.g. After illness'},
+  ]},
+  healthNote:{ title:'Health note', fields:[
+    {id:'date',label:'Date',type:'date',req:true},
+    {id:'type',label:'Note type',type:'select',opts:['normal','good','concern']},
+    {id:'text',label:'Note',type:'textarea',req:true,full:true,ph:'Describe what you observed…'},
+  ]},
+  contact:{ title:'Emergency contact', fields:[
+    {id:'type',label:'Contact type',type:'text',req:true,ph:'e.g. Primary vet, Emergency clinic'},
+    {id:'name',label:'Name',type:'text',req:true,ph:'Dr. Name / Clinic name'},
+    {id:'phone',label:'Phone number',type:'tel',ph:'+62 812 345 6789'},
+    {id:'hours',label:'Hours / availability',type:'text',ph:'e.g. Mon–Sat 8am–6pm'},
+    {id:'notes',label:'Notes',type:'text',full:true,ph:'e.g. 2.5 km away'},
+  ]}
+};
+
+const SEC_ARRAY_MAP = { vaccination:'vaccinations', medication:'medications', vetVisit:'vetVisits', weightLog:'weightLogs', healthNote:'healthNotes', contact:'contacts' };
+function sectionArray(pet, section) { return pet[SEC_ARRAY_MAP[section]]; }
+
+function buildFormHTML(fields, data) {
+  return `<div class="form-grid form-2">${fields.map(f => {
+    const v = data[f.id]||'';
+    const full = f.full ? 'span2' : '';
+    let inp = f.type==='select'
+      ? `<select id="rf_${f.id}">${(f.opts||[]).map(o=>`<option value="${o}" ${v===o?'selected':''}>${o.charAt(0).toUpperCase()+o.slice(1)}</option>`).join('')}</select>`
+      : f.type==='textarea'
+        ? `<textarea id="rf_${f.id}" placeholder="${f.ph||''}">${esc(v)}</textarea>`
+        : `<input type="${f.type}" id="rf_${f.id}" value="${esc(v)}" placeholder="${f.ph||''}">`;
+    return `<div class="form-group ${full}"><label>${f.label}${f.req?` <span class="req">*</span>`:''}</label>${inp}</div>`;
+  }).join('')}</div>`;
+}
+
+function openAddModal(section) {
+  const cfg = RECORD_FORMS[section]; if (!cfg) return;
+  modalCtx = { type:'record', section, recordId:null };
+  const def = { date:today(), unit:'kg', weightUnit:'kg', status:'active', type: section==='vetVisit'?'annual':'normal' };
+  openModal('Add '+cfg.title.toLowerCase(), buildFormHTML(cfg.fields,def),
+    `<button class="btn" onclick="closeModal()">Cancel</button>
+     <button class="btn btn-primary" onclick="saveRecordForm('${section}')">Add entry</button>`);
+}
+function openRecordModal(section, recordId) {
+  const pet = getActivePet(); if (!pet) return;
+  const cfg = RECORD_FORMS[section]; if (!cfg) return;
+  const record = sectionArray(pet,section).find(r=>r.id===recordId); if (!record) return;
+  modalCtx = { type:'record', section, recordId };
+  openModal('Edit '+cfg.title.toLowerCase(), buildFormHTML(cfg.fields,record),
+    `<button class="btn" onclick="closeModal()">Cancel</button>
+     <button class="btn btn-primary" onclick="saveRecordForm('${section}')">Save changes</button>`);
+}
+function saveRecordForm(section) {
+  const cfg = RECORD_FORMS[section]; if (!cfg) return;
+  const data = {};
+  for (const f of cfg.fields) {
+    const el = document.getElementById('rf_'+f.id); if (!el) continue;
+    data[f.id] = el.value.trim();
+    if (f.req && !data[f.id]) { alert(f.label+' is required'); return; }
+  }
+  const pet = getActivePet(); if (!pet) return;
+  const arr = sectionArray(pet,section);
+  if (modalCtx.recordId) { Object.assign(arr.find(r=>r.id===modalCtx.recordId), data); }
+  else { arr.push({ id:genId(), ...data }); }
+  saveState(); closeModal(); renderAll();
+}
+
+// ── DELETE ────────────────────────────────────────────────────
+function confirmDeleteRecord(section, recordId) {
+  modalCtx = { type:'confirmRecord', section, recordId };
+  openModal('Delete entry',
+    `<div class="confirm-icon">🗑️</div><div class="confirm-msg">Delete this entry? This cannot be undone.</div>`,
+    `<button class="btn" onclick="closeModal()">Cancel</button>
+     <button class="btn btn-danger" onclick="doDeleteRecord()">Delete</button>`);
+}
+function doDeleteRecord() {
+  const pet = getActivePet(); if (!pet) return;
+  const arr = sectionArray(pet, modalCtx.section);
+  const idx = arr.findIndex(r=>r.id===modalCtx.recordId);
+  if (idx>-1) arr.splice(idx,1);
+  saveState(); closeModal(); renderAll();
+}
+function confirmDeletePet(petId) {
+  const pet = state.pets.find(p=>p.id===petId); if (!pet) return;
+  modalCtx = { type:'confirmPet', petId };
+  openModal('Remove pet',
+    `<div class="confirm-icon">⚠️</div><div class="confirm-msg">Remove <strong>${esc(pet.name)}</strong> and all their records? This cannot be undone.</div>`,
+    `<button class="btn" onclick="closeModal()">Cancel</button>
+     <button class="btn btn-danger" onclick="doDeletePet()">Remove pet</button>`);
+}
+function doDeletePet() {
+  state.pets = state.pets.filter(p=>p.id!==modalCtx.petId);
+  if (state.activePetId===modalCtx.petId) state.activePetId = state.pets[0]?.id||null;
+  saveState(); closeModal(); renderAll();
+}
+
+// ── EXPORT / IMPORT ───────────────────────────────────────────
+function exportData() {
+  const blob = new Blob([JSON.stringify(state,null,2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href=url; a.download=`pet-health-backup-${today()}.json`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  localStorage.setItem('petLog_lastExport', Date.now().toString());
+}
+function importData(input) {
+  const file = input.files[0]; if (!file) return;
+  const fr = new FileReader();
+  fr.onload = e => {
+    try {
+      const imp = JSON.parse(e.target.result);
+      if (!imp.pets) throw new Error();
+      if (!confirm(`Replace current data with backup (${imp.pets.length} pet${imp.pets.length!==1?'s':''})?`)) { input.value=''; return; }
+      state = imp;
+      if (!state.activePetId && state.pets.length) state.activePetId = state.pets[0].id;
+      saveState(); renderAll(); alert('Backup restored!');
+    } catch { alert('Invalid backup file.'); }
+    input.value = '';
+  };
+  fr.readAsText(file);
+}
+
+// ── NAV ───────────────────────────────────────────────────────
+function selectPet(id) { state.activePetId=id; activeTab='vaccinations'; saveState(); renderAll(); }
+function switchTab(tab) { activeTab=tab; renderAll(); }
+function renderAll() { renderSidebar(); renderMain(); }
+
+// ── INIT ──────────────────────────────────────────────────────
+const SEED_DATA = {
+  pets: [{
+    id: 'bambang',
+    name: 'Bambang',
+    emoji: '🐱',
+    bgColor: '#faeeda',
+    species: 'Cat',
+    breed: 'Domestic Shorthair',
+    birthdate: '2022-10-01',
+    sex: 'Male (intact)',
+    microchip: '',
+    vet: 'Dr. Tania',
+    insurance: '',
+    conditions: [],
+    vaccinations: [{
+      id: 'vax1',
+      name: 'Unknown — 1 dose only',
+      description: 'Incomplete series — follow up with Dr. Tania to confirm which vaccine and schedule next dose',
+      dateGiven: '',
+      nextDue: '',
+      vet: 'Dr. Tania · Petologi Vet Center',
+      notes: 'Only one dose received to date. Ask vet for vaccine type and booster schedule.'
+    }],
+    medications: [],
+    vetVisits: [{
+      id: 'visit1',
+      date: '',
+      type: 'checkup',
+      vet: 'Dr. Tania',
+      clinic: 'Petologi Vet Center',
+      weight: '',
+      weightUnit: 'kg',
+      summary: 'Received first (and so far only) vaccine dose.',
+      followUp: 'Schedule booster and confirm full vaccine type with Dr. Tania.'
+    }],
+    weightLogs: [],
+    healthNotes: [{
+      id: 'note1',
+      date: '2026-04-24',
+      type: 'normal',
+      text: 'Health log created. Bambang is 3.5 years old, male domestic shorthair. Primary vet: Dr. Tania at Petologi Vet Center. Vaccination incomplete — only one dose on record. Microchip not yet registered.'
+    }],
+    contacts: [{
+      id: 'contact1',
+      type: 'Primary vet',
+      name: 'Dr. Tania',
+      phone: '',
+      hours: '',
+      notes: 'Petologi Vet Center'
+    }]
+  }],
+  activePetId: 'bambang'
+};
+
+loadState();
+// Only seed if no data exists yet
+if (!state.pets || state.pets.length === 0) {
+  state = SEED_DATA;
+  saveState();
+}
+if (!state.activePetId && state.pets.length) state.activePetId = state.pets[0].id;
+renderAll();
+</script>
+</body>
+</html>
