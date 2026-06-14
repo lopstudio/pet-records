@@ -1,0 +1,2570 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pet Health Log</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+/* ── CSS VARIABLES (light / dark) ─────────────────────────── */
+:root {
+  --bg:        #f5f3ee;
+  --surface:   #ffffff;
+  --border:    #d3d1c7;
+  --border-2:  #f1efe8;
+  --text:      #2c2c2a;
+  --text-2:    #5f5e5a;
+  --text-3:    #888780;
+  --muted:     #f5f3ee;
+  --muted-2:   #faf9f7;
+  --green:     #1d9e75;
+  --green-bg:  #e1f5ee;
+  --green-dk:  #0f6e56;
+  --amber-bg:  #faeeda;
+  --red-bg:    #fcebeb;
+  --shadow:    rgba(0,0,0,0.06);
+}
+[data-theme="dark"] {
+  --bg:        #1a1917;
+  --surface:   #242320;
+  --border:    #3a3835;
+  --border-2:  #2e2c29;
+  --text:      #e8e6df;
+  --text-2:    #a8a69f;
+  --text-3:    #706e68;
+  --muted:     #2a2825;
+  --muted-2:   #201f1d;
+  --green:     #2dbf8e;
+  --green-bg:  #0d2b22;
+  --green-dk:  #26a87c;
+  --amber-bg:  #2d2009;
+  --red-bg:    #2d1212;
+  --shadow:    rgba(0,0,0,0.3);
+}
+
+*,*::before,*::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; transition: background .2s, color .2s; }
+button { font-family: inherit; cursor: pointer; }
+.ic { display: inline-block; vertical-align: -0.15em; width: 16px; height: 16px; flex-shrink: 0; }
+
+input, select, textarea { font-family: inherit; }
+
+/* Header */
+.app-header { background: var(--surface); border-bottom: 0.5px solid var(--border); padding: 0.85rem 2rem; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 50; }
+.app-title { font-size: 1.05rem; font-weight: 600; color: var(--text); display: flex; align-items: center; gap: 10px; }
+.paw-icon { width: 28px; height: 28px; background: var(--green-bg); border-radius: 8px; display: flex; align-items: center; justify-content: center; }
+.paw-icon .ic { width: 16px; height: 16px; color: var(--green-dk); }
+.header-actions { display: flex; gap: 6px; align-items: center; }
+.icon-btn { width: 34px; height: 34px; background: var(--surface); border: 0.5px solid var(--border); border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; color: var(--text-2); cursor: pointer; transition: .12s; }
+.icon-btn .ic { width: 17px; height: 17px; }
+.icon-btn:hover { background: var(--muted); color: var(--text); border-color: var(--text-3); }
+
+/* Layout */
+.container { max-width: 1100px; margin: 0 auto; padding: 2rem; }
+.layout { display: grid; grid-template-columns: 224px 1fr; gap: 1.5rem; align-items: start; }
+
+/* Sidebar */
+.sidebar { display: flex; flex-direction: column; gap: 0.7rem; position: sticky; top: 66px; }
+.sb-label { font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--text-3); padding: 0 4px; }
+.pet-tab { background: var(--surface); border: 0.5px solid var(--border); border-radius: 10px; padding: 10px 12px; cursor: pointer; display: flex; align-items: center; gap: 10px; transition: all .12s; width: 100%; text-align: left; position: relative; }
+.pet-tab:hover { border-color: var(--text-3); }
+.pet-tab.active { border-color: var(--green); background: var(--green-bg); }
+.pet-tab-name { font-size: 13px; font-weight: 600; color: var(--text); }
+.pet-tab.active .pet-tab-name { color: var(--green-dk); }
+.pet-tab-sub { font-size: 11px; color: var(--text-3); }
+.badge-dot { position: absolute; top: 8px; right: 8px; width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid var(--surface); }
+.dot-red { background: #e24b4a; }
+.dot-amber { background: #ef9f27; }
+.add-pet-btn { border: 0.5px dashed var(--border); border-radius: 10px; padding: 10px 12px; cursor: pointer; display: flex; align-items: center; gap: 8px; color: var(--text-2); font-size: 13px; background: transparent; width: 100%; transition: .12s; }
+.add-pet-btn:hover { background: var(--surface); border-color: var(--text-3); color: var(--text); }
+.stats-box { background: var(--surface); border: 0.5px solid var(--border); border-radius: 10px; padding: 12px; }
+.stat-row { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; border-bottom: 0.5px solid var(--border-2); }
+.stat-row:last-child { border-bottom: none; }
+.stat-lbl { font-size: 11px; color: var(--text-3); }
+.stat-num { font-size: 17px; font-weight: 700; color: var(--text); }
+
+/* Main */
+.main { display: flex; flex-direction: column; gap: 1.25rem; }
+
+/* Welcome */
+.welcome { background: var(--surface); border: 0.5px solid var(--border); border-radius: 12px; padding: 4rem 2rem; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 1rem; }
+.welcome h2 { font-size: 1.3rem; font-weight: 600; }
+.welcome p { color: var(--text-3); font-size: 13px; max-width: 320px; line-height: 1.7; }
+
+/* Pet header */
+.pet-header-card { background: var(--surface); border: 0.5px solid var(--border); border-radius: 12px; padding: 1.25rem; }
+.pet-header-top { display: flex; align-items: flex-start; gap: 1rem; }
+.pet-header-info { flex: 1; min-width: 0; }
+.pet-name-row { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; flex-wrap: wrap; }
+.pet-name { font-size: 1.2rem; font-weight: 600; color: var(--text); }
+.pet-badge { font-size: 11px; font-weight: 500; padding: 3px 10px; border-radius: 20px; }
+.badge-cat    { background: #faeeda; color: #633806; }
+.badge-dog    { background: #e6f1fb; color: #0c447c; }
+.badge-rabbit { background: #fbeaf0; color: #72243e; }
+.badge-bird   { background: #eeedfe; color: #3c3489; }
+.badge-other  { background: var(--muted); color: var(--text-2); }
+[data-theme="dark"] .badge-cat { background: #2d2009; color: #fac775; }
+[data-theme="dark"] .badge-dog { background: #042c53; color: #85b7eb; }
+[data-theme="dark"] .badge-rabbit { background: #4b1528; color: #ed93b1; }
+[data-theme="dark"] .badge-bird { background: #26215c; color: #afa9ec; }
+.alert-chip { background: var(--red-bg); color: #c0392b; border-radius: 6px; padding: 3px 9px; font-size: 12px; font-weight: 500; display: inline-flex; align-items: center; gap: 4px; }
+[data-theme="dark"] .alert-chip { color: #f09595; }
+.alert-chip .ic { width: 12px; height: 12px; }
+.pet-sub-line { font-size: 13px; color: var(--text-2); margin-bottom: 8px; }
+.pet-meta-mini { display: flex; gap: 14px; flex-wrap: wrap; }
+.pet-meta-mini span { font-size: 12px; color: var(--text-3); display: inline-flex; align-items: center; gap: 5px; }
+.pet-meta-mini .ic { width: 14px; height: 14px; }
+.hdr-btn-group { display: flex; gap: 6px; flex-shrink: 0; }
+
+/* Metric cards */
+.pet-metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 16px; }
+.mc { background: var(--muted); border-radius: 10px; padding: 11px 13px; }
+.mc-l { font-size: 11px; color: var(--text-3); margin-bottom: 5px; display: flex; align-items: center; gap: 5px; }
+.mc-l .ic { width: 14px; height: 14px; }
+.mc-v { font-size: 19px; font-weight: 600; color: var(--text); line-height: 1; }
+.mc-v small { font-size: 11px; color: var(--text-3); font-weight: 400; }
+.mc-v.mc-danger { color: #c0392b; }
+.mc-v.mc-warn { color: #854f0b; }
+[data-theme="dark"] .mc-v.mc-danger { color: #f09595; }
+[data-theme="dark"] .mc-v.mc-warn { color: #fac775; }
+.mc-v.mc-empty { color: var(--text-3); font-weight: 400; }
+
+/* Section card */
+.section-card { background: var(--surface); border: 0.5px solid var(--border); border-radius: 12px; overflow: hidden; }
+.section-tabs { display: flex; gap: 4px; padding: 10px 14px; border-bottom: 0.5px solid var(--border); overflow-x: auto; scrollbar-width: none; }
+.section-tabs::-webkit-scrollbar { display: none; }
+.stab { padding: 6px 14px; border-radius: 9px; font-size: 12.5px; font-weight: 500; border: 0.5px solid transparent; color: var(--text-2); cursor: pointer; background: none; white-space: nowrap; transition: .1s; }
+.stab:hover { background: var(--muted); }
+.stab.active { background: var(--text); color: var(--surface); border-color: var(--text); }
+.sec-toolbar { padding: 10px 16px; border-bottom: 0.5px solid var(--border-2); display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.sec-title { font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 8px; color: var(--text); }
+.s-ic { width: 26px; height: 26px; border-radius: 7px; display: flex; align-items: center; justify-content: center; }
+.s-ic .ic { width: 15px; height: 15px; }
+.ig { background: #eaf3de; } .ib { background: #e6f1fb; } .ia { background: #faeeda; }
+.it { background: #e1f5ee; } .ic { background: #faece7; } .ip { background: #eeedfe; } .iw { background: #e8f3fb; }
+.iall { background: var(--muted); }
+.sec-right { display: flex; align-items: center; gap: 6px; }
+.search-input { padding: 5px 10px; border: 0.5px solid var(--border); border-radius: 7px; font-size: 12px; color: var(--text); background: var(--muted); outline: none; width: 160px; transition: .1s; }
+.search-input:focus { border-color: var(--green); background: var(--surface); box-shadow: 0 0 0 2px rgba(29,158,117,.1); }
+.search-input::placeholder { color: var(--text-3); }
+.add-row-btn { font-size: 12px; color: var(--green); background: none; border: none; cursor: pointer; padding: 4px 10px; border-radius: 6px; font-weight: 500; transition: .1s; white-space: nowrap; }
+.add-row-btn:hover { background: var(--green-bg); }
+
+/* Table */
+.data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.data-table th { padding: 7px 16px; background: var(--muted); text-align: left; font-weight: 600; color: var(--text-3); font-size: 10px; text-transform: uppercase; letter-spacing: .05em; border-bottom: 0.5px solid var(--border); white-space: nowrap; }
+.data-table td { padding: 10px 16px; border-bottom: 0.5px solid var(--border-2); color: var(--text); vertical-align: middle; }
+.data-table tr:last-child td { border-bottom: none; }
+.data-table tr:hover td { background: var(--muted-2); }
+.td-sub { font-size: 11px; color: var(--text-3); margin-top: 2px; }
+.row-actions { display: flex; gap: 3px; opacity: 0; transition: .1s; }
+.data-table tr:hover .row-actions { opacity: 1; }
+.ra-btn { background: none; border: none; cursor: pointer; padding: 3px 8px; border-radius: 5px; font-size: 11px; font-weight: 500; color: var(--text-2); transition: .1s; }
+.ra-btn:hover { background: var(--muted); }
+.ra-btn.del:hover { background: var(--red-bg); color: #a32d2d; }
+.no-results { padding: 2rem; text-align: center; color: var(--text-3); font-size: 13px; }
+
+/* Pills */
+.pill { display: inline-block; padding: 2px 9px; border-radius: 20px; font-size: 11px; font-weight: 500; }
+.pill-green  { background: #eaf3de; color: #3b6d11; }
+.pill-amber  { background: #faeeda; color: #854f0b; }
+.pill-red    { background: #fcebeb; color: #a32d2d; }
+.pill-blue   { background: #e6f1fb; color: #185fa5; }
+.pill-gray   { background: var(--muted); color: var(--text-2); }
+.pill-purple { background: #eeedfe; color: #3c3489; }
+.pill-teal   { background: #e1f5ee; color: #0f6e56; }
+
+/* Notes */
+.notes-list { padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
+.note-item { background: var(--muted); border-radius: 8px; padding: 12px 14px; border-left: 3px solid var(--border); position: relative; }
+.note-item.note-concern { border-left-color: #ef9f27; background: var(--amber-bg); }
+.note-item.note-good    { border-left-color: #639922; background: #f2fae8; }
+[data-theme="dark"] .note-item.note-good { background: #0d2009; }
+.note-date { font-size: 11px; color: var(--text-3); margin-bottom: 4px; }
+.note-text { font-size: 13px; line-height: 1.55; color: var(--text); }
+.note-actions { position: absolute; top: 8px; right: 8px; display: flex; gap: 3px; opacity: 0; transition: .1s; }
+.note-item:hover .note-actions { opacity: 1; }
+
+/* Weight */
+.weight-section { padding: 14px 16px; }
+.metrics-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 14px 16px 0; }
+.mc { background: var(--muted); border-radius: 10px; padding: 11px 13px; }
+.wchart-legend { display: flex; gap: 16px; padding: 12px 16px 6px; font-size: 12px; color: var(--text-2); }
+.wchart-legend span { display: flex; align-items: center; gap: 5px; }
+.lg-dot { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+.wchart-wrap { padding: 0 16px 6px; }
+.wchart { width: 100%; height: auto; display: block; overflow: visible; }
+.wc-grid { stroke: var(--border-2); stroke-width: 1; }
+.wc-axis { font-size: 10px; fill: var(--text-3); font-family: 'Plus Jakarta Sans', sans-serif; }
+.wc-area { fill: rgba(186,117,23,.08); stroke: none; }
+.wc-line { fill: none; stroke: #BA7517; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+[data-theme="dark"] .wc-line { stroke: #EF9F27; }
+[data-theme="dark"] .wc-area { fill: rgba(239,159,39,.10); }
+.wlist { padding: 8px 16px 16px; }
+.wlist-row { display: grid; grid-template-columns: 110px 80px 1fr auto; align-items: center; gap: 10px; padding: 9px 0; border-top: 0.5px solid var(--border-2); }
+.wlist-row:first-child { border-top: none; }
+.wlist-date { font-size: 12.5px; color: var(--text-2); }
+.wlist-val { font-size: 14px; font-weight: 500; color: var(--text); }
+.wlist-val small { font-size: 11px; color: var(--text-3); font-weight: 400; }
+.wlist-note { font-size: 12px; color: var(--text-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wlist-empty { padding: 12px 16px 18px; font-size: 12.5px; color: var(--text-3); }
+.w-acts { display: flex; gap: 2px; opacity: 0; transition: .1s; }
+.wlist-row:hover .w-acts { opacity: 1; }
+
+/* Contacts */
+.contacts-grid { padding: 14px 16px; display: grid; grid-template-columns: repeat(auto-fill,minmax(200px,1fr)); gap: 10px; }
+.contact-card { background: var(--muted); border-radius: 8px; padding: 12px 14px; position: relative; }
+.c-type { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--text-3); margin-bottom: 4px; }
+.c-name { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 2px; }
+.c-phone { font-size: 12px; color: var(--green); font-weight: 500; margin-bottom: 2px; }
+.c-note { font-size: 11px; color: var(--text-3); }
+.contact-actions { position: absolute; top: 8px; right: 8px; opacity: 0; transition: .1s; display: flex; gap: 3px; }
+.contact-card:hover .contact-actions { opacity: 1; }
+
+/* Parasite tracker */
+.parasite-grid { padding: 14px 16px; display: grid; grid-template-columns: repeat(auto-fill,minmax(220px,1fr)); gap: 12px; }
+.parasite-card { background: var(--muted); border-radius: 10px; padding: 14px; border: 0.5px solid var(--border-2); position: relative; }
+.parasite-card.overdue { border-color: #e24b4a; background: var(--red-bg); }
+.parasite-card.due-soon { border-color: #ef9f27; background: var(--amber-bg); }
+.parasite-card.current { border-color: var(--green); }
+.p-type { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--text-3); margin-bottom: 5px; }
+.p-name { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 8px; }
+.p-detail { font-size: 12px; color: var(--text-2); display: flex; justify-content: space-between; margin-bottom: 3px; }
+.p-detail span:last-child { font-weight: 500; color: var(--text); }
+.p-status { margin-top: 10px; }
+.parasite-actions { position: absolute; top: 10px; right: 10px; opacity: 0; transition: .1s; display: flex; gap: 3px; }
+.parasite-card:hover .parasite-actions { opacity: 1; }
+
+/* Tips */
+/* Footer summary (Option C) */
+.footer-summary { background: var(--surface); border: 0.5px solid var(--border); border-radius: 12px; overflow: hidden; }
+.fs-stats { display: grid; grid-template-columns: repeat(3, 1fr); }
+.fs-stat { padding: 14px 16px; border-right: 0.5px solid var(--border-2); }
+.fs-stat:last-child { border-right: none; }
+.fs-v { font-size: 20px; font-weight: 600; color: var(--text); line-height: 1; }
+.fs-v small { font-size: 11px; font-weight: 400; color: var(--text-3); }
+.fs-v.fs-warn { color: #854f0b; }
+[data-theme="dark"] .fs-v.fs-warn { color: #fac775; }
+.fs-l { font-size: 11px; color: var(--text-3); margin-top: 6px; display: flex; align-items: center; gap: 5px; }
+.fs-l .ic { width: 14px; height: 14px; }
+.fs-next { display: flex; gap: 13px; align-items: center; padding: 12px 16px; border-top: 0.5px solid var(--border-2); cursor: pointer; transition: background .1s; }
+.fs-next:hover { background: var(--muted-2); }
+.fs-next-date { width: 46px; flex-shrink: 0; text-align: center; }
+.fs-next-date { background: var(--amber-bg); border-radius: 8px; padding: 6px 0; }
+.fs-next-d { font-size: 15px; font-weight: 600; color: #854f0b; line-height: 1; }
+.fs-next-m { font-size: 9px; font-weight: 500; color: #ba7517; text-transform: uppercase; margin-top: 2px; }
+[data-theme="dark"] .fs-next-d { color: #fac775; }
+[data-theme="dark"] .fs-next-m { color: #ef9f27; }
+.fs-next-body { flex: 1; min-width: 0; }
+.fs-next-t { font-size: 13px; font-weight: 500; color: var(--text); }
+.fs-next-sub { font-size: 11.5px; color: var(--text-3); margin-top: 1px; }
+.fs-when { font-size: 11px; font-weight: 500; padding: 2px 9px; border-radius: 20px; background: var(--muted); color: var(--text-2); flex-shrink: 0; }
+.fs-when.fw-overdue { background: var(--red-bg); color: #a32d2d; }
+.fs-when.fw-soon { background: var(--amber-bg); color: #854f0b; }
+[data-theme="dark"] .fs-when.fw-overdue { color: #f09595; }
+[data-theme="dark"] .fs-when.fw-soon { color: #fac775; }
+.fs-next-empty { padding: 14px 16px; font-size: 12.5px; color: var(--text-3); border-top: 0.5px solid var(--border-2); }
+
+/* Backup banner */
+.backup-banner { background: var(--amber-bg); border: 0.5px solid #f5c475; border-radius: 10px; padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; gap: 1rem; font-size: 12px; color: #633806; }
+
+/* Empty state */
+.empty-state { padding: 2.5rem; text-align: center; color: var(--text-3); font-size: 13px; }
+.empty-state .ei { font-size: 2rem; margin-bottom: 8px; color: var(--text-3); }
+.empty-state .ei .ic { width: 2rem; height: 2rem; }
+
+/* Buttons */
+.btn { padding: 7px 14px; border-radius: 8px; font-size: 13px; font-weight: 500; border: 0.5px solid var(--border); background: var(--surface); color: var(--text); cursor: pointer; transition: .12s; display: inline-flex; align-items: center; gap: 5px; }
+.btn .ic { width: 15px; height: 15px; }
+.btn:hover { background: var(--muted); }
+.btn-primary { background: var(--green); border-color: var(--green); color: #fff; }
+.btn-primary:hover { background: var(--green-dk); }
+.btn-danger { background: #e24b4a; border-color: #e24b4a; color: #fff; }
+.btn-danger:hover { background: #a32d2d; }
+.btn-sm { padding: 5px 12px; font-size: 12px; }
+.edit-pet-btn { background: var(--muted); border: 0.5px solid var(--border); border-radius: 8px; padding: 6px 14px; font-size: 12px; font-weight: 500; color: var(--text); cursor: pointer; transition: .12s; }
+.edit-pet-btn:hover { background: var(--border); }
+.del-pet-btn { background: var(--red-bg); border: 0.5px solid #f7c1c1; border-radius: 8px; padding: 6px 14px; font-size: 12px; font-weight: 500; color: #a32d2d; cursor: pointer; transition: .12s; }
+.del-pet-btn:hover { background: #fcebeb; }
+
+/* Modal */
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.5); display: none; align-items: center; justify-content: center; z-index: 1000; padding: 1rem; }
+.modal-overlay.open { display: flex; }
+.modal { background: var(--surface); border-radius: 14px; width: 100%; max-width: 520px; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 60px var(--shadow); border: 0.5px solid var(--border); }
+.modal-hdr { padding: 1.2rem 1.5rem; border-bottom: 0.5px solid var(--border-2); display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; background: var(--surface); z-index: 1; }
+.modal-title { font-size: 15px; font-weight: 700; color: var(--text); }
+.modal-close { background: var(--muted); border: none; width: 28px; height: 28px; border-radius: 50%; font-size: 14px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text); transition: .1s; }
+.modal-close:hover { background: var(--border); }
+.modal-body { padding: 1.5rem; }
+.modal-foot { padding: 1rem 1.5rem; border-top: 0.5px solid var(--border-2); display: flex; justify-content: flex-end; gap: 8px; }
+
+/* Forms */
+.form-grid { display: grid; gap: 1rem; }
+.f2 { grid-template-columns: 1fr 1fr; }
+.fg { display: flex; flex-direction: column; gap: 5px; }
+.fg.s2 { grid-column: span 2; }
+label { font-size: 12px; font-weight: 600; color: var(--text-2); }
+.req { color: #e24b4a; }
+input[type=text],input[type=date],input[type=number],input[type=tel],select,textarea { width: 100%; padding: 8px 12px; border: 0.5px solid var(--border); border-radius: 8px; font-size: 13px; color: var(--text); background: var(--surface); outline: none; transition: border .1s; }
+input:focus,select:focus,textarea:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(29,158,117,.1); }
+select option { background: var(--surface); color: var(--text); }
+textarea { resize: vertical; min-height: 72px; line-height: 1.5; }
+.hint { font-size: 11px; color: var(--text-3); }
+.emoji-picker { display: flex; gap: 8px; flex-wrap: wrap; }
+.emoji-opt { width: 40px; height: 40px; border-radius: 10px; border: 1.5px solid var(--border); background: var(--muted); font-size: 22px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: .1s; }
+.emoji-opt:hover { border-color: var(--green); }
+.emoji-opt.sel { border-color: var(--green); background: var(--green-bg); }
+.color-picker { display: flex; gap: 10px; flex-wrap: wrap; }
+.color-opt { width: 26px; height: 26px; border-radius: 50%; border: 2.5px solid transparent; cursor: pointer; transition: .15s; }
+.color-opt.sel { border-color: var(--text); transform: scale(1.15); }
+.photo-upload-area { border: 1.5px dashed var(--border); border-radius: 10px; padding: 1rem; text-align: center; cursor: pointer; transition: .15s; background: var(--muted-2); }
+.photo-upload-area:hover { border-color: var(--green); background: var(--green-bg); }
+.photo-preview { width: 72px; height: 72px; border-radius: 50%; object-fit: cover; border: 2.5px solid var(--green); display: block; margin: 0 auto 6px; }
+.avatar-img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+.photo-remove-btn { font-size: 11px; color: #a32d2d; background: none; border: none; cursor: pointer; margin-top: 6px; padding: 2px 8px; border-radius: 5px; }
+.photo-remove-btn:hover { background: var(--red-bg); }
+.confirm-icon { font-size: 2.5rem; text-align: center; margin-bottom: .75rem; }
+.confirm-icon .ic { width: 2.25rem; height: 2.25rem; }
+.confirm-icon.del .ic { color: #c0392b; }
+.confirm-icon.warn .ic { color: #854f0b; }
+[data-theme="dark"] .confirm-icon.del .ic { color: #f09595; }
+[data-theme="dark"] .confirm-icon.warn .ic { color: #fac775; }
+.confirm-msg { text-align: center; color: var(--text-2); font-size: 14px; line-height: 1.65; margin-bottom: 1.25rem; }
+
+/* Notifications (phone-style) */
+.notif-stack { display: flex; flex-direction: column; gap: 8px; }
+.notif-card { background: var(--surface); border: 0.5px solid var(--border); border-radius: 16px; padding: 12px 14px; display: flex; gap: 12px; align-items: flex-start; box-shadow: 0 2px 8px rgba(0,0,0,.05), 0 0 0 0.5px rgba(0,0,0,.02); cursor: pointer; transition: transform .14s ease, box-shadow .14s ease; position: relative; overflow: hidden; }
+.notif-card:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(0,0,0,.08); }
+.notif-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--text-3); }
+.notif-card.overdue::before  { background: #e24b4a; }
+.notif-card.soon::before     { background: #ef9f27; }
+.notif-card.upcoming::before { background: var(--green); }
+.notif-icon { width: 32px; height: 32px; border-radius: 9px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.notif-icon .ic { width: 16px; height: 16px; }
+.notif-card.overdue  .notif-icon { background: var(--red-bg); }
+.notif-card.overdue  .notif-icon .ic { color: #a32d2d; }
+.notif-card.soon     .notif-icon { background: var(--amber-bg); }
+.notif-card.soon     .notif-icon .ic { color: #854f0b; }
+.notif-card.upcoming .notif-icon { background: var(--green-bg); }
+.notif-card.upcoming .notif-icon .ic { color: var(--green-dk); }
+[data-theme="dark"] .notif-card.overdue .notif-icon .ic { color: #f09595; }
+[data-theme="dark"] .notif-card.soon .notif-icon .ic { color: #fac775; }
+.notif-body { flex: 1; min-width: 0; }
+.notif-meta-row { display: flex; justify-content: space-between; align-items: center; font-size: 10px; color: var(--text-3); margin-bottom: 3px; gap: 8px; }
+.notif-app  { font-weight: 600; text-transform: uppercase; letter-spacing: .06em; }
+.notif-time { font-weight: 500; font-variant-numeric: tabular-nums; flex-shrink: 0; }
+.notif-card.overdue  .notif-time { color: #a32d2d; }
+.notif-card.soon     .notif-time { color: #854f0b; }
+.notif-card.upcoming .notif-time { color: var(--green-dk); }
+.notif-title { font-size: 13.5px; font-weight: 600; color: var(--text); line-height: 1.3; margin-bottom: 2px; overflow: hidden; text-overflow: ellipsis; }
+.notif-sub { font-size: 12px; color: var(--text-2); line-height: 1.4; }
+
+/* All / Timeline — minimal version */
+.range-bar { padding: 10px 16px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; border-bottom: 0.5px solid var(--border-2); }
+.range-lbl { font-size: 11px; color: var(--text-3); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; margin-right: 4px; }
+.range-pill { padding: 4px 11px; border-radius: 20px; font-size: 12px; font-weight: 500; border: 0.5px solid var(--border); color: var(--text-2); cursor: pointer; background: var(--surface); transition: .1s; white-space: nowrap; }
+.range-pill:hover { background: var(--muted); }
+.range-pill.active { background: var(--text); color: var(--surface); border-color: var(--text); }
+.range-custom { display: flex; align-items: center; gap: 6px; margin-left: 4px; font-size: 12px; color: var(--text-3); }
+.range-custom input[type=date] { padding: 4px 8px; font-size: 12px; width: auto; }
+
+.timeline-month { font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--text-3); padding: 16px 16px 6px; }
+.timeline-month:first-child { padding-top: 12px; }
+.timeline-row { padding: 14px 16px; border-top: 0.5px solid var(--border-2); display: flex; gap: 16px; align-items: flex-start; position: relative; transition: background .1s; }
+.timeline-month + .timeline-row { border-top: none; }
+.timeline-row:hover { background: var(--muted-2); }
+
+/* V3 date pill */
+.tl-date { width: 52px; flex-shrink: 0; display: flex; align-items: flex-start; }
+.tl-date-inner { background: var(--amber-bg); border-radius: 9px; padding: 7px 0; width: 100%; text-align: center; font-variant-numeric: tabular-nums; }
+.tl-date-inner.upcoming { background: var(--green-bg); }
+.tl-day { font-size: 17px; font-weight: 600; color: #854f0b; line-height: 1; }
+.tl-mon { font-size: 10px; font-weight: 600; color: #ba7517; margin-top: 3px; text-transform: uppercase; letter-spacing: .04em; }
+.tl-date-inner.upcoming .tl-day { color: var(--green-dk); }
+.tl-date-inner.upcoming .tl-mon { color: var(--green); }
+[data-theme="dark"] .tl-day { color: #fac775; }
+[data-theme="dark"] .tl-mon { color: #ef9f27; }
+
+.tl-content { flex: 1; min-width: 0; padding-top: 2px; }
+.tl-title-row { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; margin-bottom: 4px; }
+.tl-title { font-size: 14px; color: var(--text); line-height: 1.45; font-weight: 500; flex: 1; min-width: 0; word-break: break-word; }
+.tl-meta { font-size: 11.5px; color: var(--text-3); line-height: 1.5; font-weight: 500; }
+
+/* Truncated note with expand */
+.tl-note { font-size: 12.5px; color: var(--text-2); line-height: 1.55; margin-top: 6px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
+.tl-note.expanded { display: block; -webkit-line-clamp: unset; }
+.tl-expand { font-size: 11.5px; color: var(--green-dk); margin-top: 4px; cursor: pointer; font-weight: 500; display: inline-block; padding: 2px 0; background: none; border: none; font-family: inherit; }
+.tl-expand:hover { text-decoration: underline; }
+
+.tl-followup { font-size: 11.5px; color: var(--text-2); margin-top: 8px; padding-left: 10px; border-left: 2px solid var(--border); line-height: 1.5; }
+
+.tl-actions { display: flex; gap: 3px; opacity: 0; transition: .1s; flex-shrink: 0; align-self: flex-start; padding-top: 2px; }
+.timeline-row:hover .tl-actions { opacity: 1; }
+
+/* File attachments */
+.attach-section { margin-top: 14px; padding-top: 14px; border-top: 0.5px solid var(--border-2); }
+.attach-label-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.attach-add-btn { background: var(--muted); border: 0.5px dashed var(--border); border-radius: 8px; padding: 8px 12px; font-size: 12px; color: var(--text-2); cursor: pointer; font-weight: 500; transition: .12s; }
+.attach-add-btn:hover { border-color: var(--green); color: var(--green-dk); background: var(--green-bg); }
+.attach-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; }
+.attach-card { background: var(--muted); border-radius: 10px; padding: 8px; position: relative; cursor: pointer; transition: .12s; overflow: hidden; }
+.attach-card:hover { background: var(--border-2); }
+.attach-thumb { width: 100%; aspect-ratio: 1; border-radius: 6px; overflow: hidden; background: var(--surface); display: flex; align-items: center; justify-content: center; margin-bottom: 6px; }
+.attach-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.attach-thumb .pdf-ico { font-size: 28px; color: #c0392b; }
+.attach-thumb .file-ico { font-size: 28px; color: var(--text-3); }
+.attach-name { font-size: 11px; color: var(--text); font-weight: 500; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.attach-size { font-size: 10px; color: var(--text-3); margin-top: 2px; }
+.attach-del { position: absolute; top: 6px; right: 6px; background: rgba(0,0,0,.5); color: #fff; border: none; width: 22px; height: 22px; border-radius: 50%; cursor: pointer; font-size: 11px; display: none; align-items: center; justify-content: center; }
+.attach-card:hover .attach-del { display: flex; }
+.attach-loading { font-size: 12px; color: var(--text-3); padding: 8px 0; }
+
+/* Read-only attachment row inside record list (vet visits table) */
+.attach-row { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.attach-chip { font-size: 11px; color: var(--text-2); background: var(--muted); padding: 2px 8px; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; transition: .1s; }
+.attach-chip:hover { background: var(--border-2); color: var(--text); }
+.attach-chip .ac-ic { display:inline-flex; }
+.attach-chip .ac-ic .ic { width: 13px; height: 13px; }
+
+/* Lightbox */
+.lightbox { position: fixed; inset: 0; background: rgba(0,0,0,.88); display: none; align-items: center; justify-content: center; z-index: 2000; padding: 2rem; cursor: zoom-out; }
+.lightbox.open { display: flex; }
+.lightbox img { max-width: 100%; max-height: 100%; border-radius: 8px; box-shadow: 0 20px 60px rgba(0,0,0,.4); cursor: default; }
+.lightbox-close { position: absolute; top: 1.25rem; right: 1.5rem; background: rgba(255,255,255,.12); color: #fff; border: none; width: 36px; height: 36px; border-radius: 50%; font-size: 18px; cursor: pointer; backdrop-filter: blur(8px); }
+.lightbox-close:hover { background: rgba(255,255,255,.22); }
+.lightbox-caption { position: absolute; bottom: 1.25rem; left: 50%; transform: translateX(-50%); color: #fff; font-size: 12px; background: rgba(0,0,0,.5); padding: 6px 14px; border-radius: 20px; }
+
+/* Export menu */
+.export-menu { position: absolute; background: var(--surface); border: 0.5px solid var(--border); border-radius: 10px; box-shadow: 0 8px 24px var(--shadow); padding: 4px; min-width: 200px; z-index: 100; display: none; }
+.export-menu.open { display: block; }
+.export-menu button { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: 100%; background: none; border: none; padding: 8px 12px; border-radius: 7px; cursor: pointer; text-align: left; color: var(--text); transition: .1s; }
+.export-menu button:hover { background: var(--muted); }
+.export-menu .em-title { font-size: 13px; font-weight: 500; }
+.export-menu .em-sub { font-size: 11px; color: var(--text-3); }
+
+/* Empty state CTA */
+.empty-state .empty-cta { margin-top: 12px; }
+.empty-cta-btn { background: var(--green); color: #fff; border: none; padding: 7px 16px; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; transition: .12s; }
+.empty-cta-btn:hover { background: var(--green-dk); }
+
+/* Mobile responsive */
+@media (max-width: 760px) {
+  .app-header { padding: 0.7rem 0.9rem; flex-wrap: wrap; gap: 8px; }
+  .app-title { font-size: 1rem; }
+  .header-actions { gap: 4px; }
+  .header-actions .btn-primary span, .header-actions .btn-primary { font-size: 12px; }
+  .icon-btn { width: 32px; height: 32px; }
+  .container { padding: 0.85rem; }
+  .layout { grid-template-columns: 1fr; gap: 1rem; }
+  .sidebar { position: static; }
+  .pet-header-card { padding: 1rem; }
+  .pet-header-top { flex-wrap: wrap; }
+  .hdr-btn-group { flex-direction: row; }
+  .pet-metrics { grid-template-columns: 1fr 1fr; }
+  .metrics-grid { grid-template-columns: 1fr 1fr; }
+  .fs-stats { grid-template-columns: 1fr 1fr 1fr; }
+  .fs-stat { padding: 11px 10px; }
+  .fs-v { font-size: 17px; }
+  .wlist-row { grid-template-columns: 1fr auto auto; }
+  .wlist-note { display: none; }
+  .data-table th, .data-table td { padding: 7px 10px; font-size: 12px; }
+  .row-actions, .note-actions, .contact-actions, .parasite-actions, .w-acts, .tl-actions { opacity: 1; }
+  .search-input { width: 100%; }
+  .sec-toolbar { flex-direction: column; align-items: stretch; gap: 8px; }
+  .sec-right { width: 100%; }
+  /* Tab bar scrolls horizontally instead of wrapping/cramping */
+  .section-tabs { flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; padding-bottom: 2px; }
+  .section-tabs::-webkit-scrollbar { display: none; }
+  .stab { flex-shrink: 0; }
+  .timeline-row { padding: 12px 12px; gap: 12px; }
+  .tl-date { width: 46px; }
+  .tl-day { font-size: 16px; }
+  .tl-title-row { gap: 6px; }
+  .form-grid.f2 { grid-template-columns: 1fr; }
+  .fg.s2 { grid-column: span 1; }
+  .notif-card { padding: 10px 12px; }
+  .notif-icon { width: 28px; height: 28px; }
+  .notif-icon .ic { width: 14px; height: 14px; }
+  .attach-grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); }
+  .modal { width: 100%; max-width: 100%; border-radius: 14px 14px 0 0; }
+  .auth-card { padding: 1.75rem 1.5rem; }
+}
+
+@media (max-width: 420px) {
+  .pet-metrics { grid-template-columns: 1fr; }
+  .metrics-grid { grid-template-columns: 1fr; }
+  .fs-stats { grid-template-columns: 1fr; }
+  .fs-stat { border-right: none; border-bottom: 0.5px solid var(--border-2); }
+  .fs-stat:last-child { border-bottom: none; }
+  .pet-name { font-size: 1.1rem; }
+  .wchart-wrap { padding: 0 8px 6px; }
+  .sync-pill { left: 16px; right: 16px; text-align: center; }
+}
+
+/* Auth gate */
+.auth-gate { position: fixed; inset: 0; background: var(--bg); display: flex; align-items: center; justify-content: center; z-index: 3000; padding: 1.5rem; }
+.auth-card { background: var(--surface); border: 0.5px solid var(--border); border-radius: 16px; padding: 2rem 1.75rem; max-width: 380px; width: 100%; text-align: center; box-shadow: 0 8px 30px var(--shadow); }
+.auth-logo { font-size: 2.5rem; margin-bottom: 0.5rem; }
+.auth-title { font-size: 1.3rem; font-weight: 600; color: var(--text); margin-bottom: 0.5rem; }
+.auth-sub { font-size: 13px; color: var(--text-2); line-height: 1.55; margin-bottom: 1.25rem; }
+.auth-input { width: 100%; padding: 11px 13px; border: 0.5px solid var(--border); border-radius: 9px; font-size: 14px; background: var(--bg); color: var(--text); margin-bottom: 10px; font-family: inherit; }
+.auth-input:focus { outline: none; border-color: var(--green); }
+.auth-btn { width: 100%; padding: 11px; background: var(--green); color: #fff; border: none; border-radius: 9px; font-size: 14px; font-weight: 500; cursor: pointer; transition: .12s; font-family: inherit; }
+.auth-btn:hover { background: var(--green-dk); }
+.auth-btn:disabled { opacity: .6; cursor: default; }
+.auth-msg { font-size: 12.5px; margin-top: 12px; line-height: 1.5; min-height: 1em; }
+.auth-msg.ok { color: var(--green-dk); }
+.auth-msg.err { color: #c0392b; }
+[data-theme="dark"] .auth-msg.err { color: #f09595; }
+.auth-offline { margin-top: 1.25rem; background: none; border: none; color: var(--text-3); font-size: 12px; cursor: pointer; text-decoration: underline; font-family: inherit; }
+.auth-offline:hover { color: var(--text-2); }
+
+/* Sync status pill */
+.sync-pill { position: fixed; bottom: 16px; right: 16px; z-index: 1500; background: var(--text); color: var(--surface); font-size: 12px; font-weight: 500; padding: 7px 14px; border-radius: 20px; box-shadow: 0 4px 14px var(--shadow); transition: opacity .3s; }
+.sync-pill.err { background: #c0392b; color: #fff; }
+.sync-pill.ok { background: var(--green); color: #fff; }
+
+/* Print */
+@media print {
+  .app-header, .sidebar, .hdr-btn-group, .section-tabs, .sec-toolbar .sec-right,
+  .add-row-btn, .row-actions, .note-actions, .contact-actions, .parasite-actions,
+  .w-acts, .footer-summary, .backup-banner, .modal-overlay, .icon-btn { display: none !important; }
+  body { background: #fff !important; color: #000 !important; }
+  .container { padding: .5rem !important; max-width: 100% !important; }
+  .layout { grid-template-columns: 1fr !important; }
+  .section-card, .pet-header-card { border: 1px solid #ccc !important; box-shadow: none !important; page-break-inside: avoid; margin-bottom: 1rem; }
+  .data-table th { background: #f0f0f0 !important; }
+  #tabContent { display: none; }
+  .print-all-sections { display: block !important; }
+}
+.print-all-sections { display: none; }
+
+@media (max-width: 700px) {
+  .layout { grid-template-columns: 1fr; }
+  .sidebar { position: static; }
+  .f2 { grid-template-columns: 1fr; }
+  .fg.s2 { grid-column: span 1; }
+  .search-input { width: 120px; }
+}
+</style>
+</head>
+<body>
+
+<div class="auth-gate" id="authGate">
+  <div class="auth-card">
+    <div class="auth-logo">🐾</div>
+    <h1 class="auth-title">Pet Health Log</h1>
+    <p class="auth-sub" id="authSub">Sign in to access your pets on any device. We'll email you a one-time link — no password needed.</p>
+    <div id="authForm">
+      <input type="email" id="authEmail" class="auth-input" placeholder="you@example.com" autocomplete="email" inputmode="email">
+      <button class="auth-btn" id="authSendBtn" onclick="sendMagicLink()">Email me a sign-in link</button>
+      <div class="auth-msg" id="authMsg"></div>
+    </div>
+    <button class="auth-offline" onclick="useOfflineMode()">Continue offline on this device only</button>
+  </div>
+</div>
+
+<div class="sync-pill" id="syncPill" style="display:none"><span id="syncPillText"></span></div>
+
+<div class="app-shell" id="appShell" style="display:none">
+<div class="app-header">
+  <div class="app-title"><div class="paw-icon">🐾</div>Pet Health Log</div>
+  <div class="header-actions">
+    <button class="icon-btn" id="darkToggle" onclick="toggleDark()" title="Toggle dark mode" aria-label="Toggle dark mode"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454l0 .008" /></svg></button>
+    <button class="icon-btn" onclick="printView()" title="Print" aria-label="Print"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 17h2a2 2 0 0 0 2 -2v-4a2 2 0 0 0 -2 -2h-14a2 2 0 0 0 -2 2v4a2 2 0 0 0 2 2h2" /> <path d="M17 9v-4a2 2 0 0 0 -2 -2h-6a2 2 0 0 0 -2 2v4" /> <path d="M7 15a2 2 0 0 1 2 -2h6a2 2 0 0 1 2 2v4a2 2 0 0 1 -2 2h-6a2 2 0 0 1 -2 -2l0 -4" /></svg></button>
+    <button class="icon-btn" onclick="document.getElementById('importInput').click()" title="Import backup" aria-label="Import backup"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2" /> <path d="M7 9l5 -5l5 5" /> <path d="M12 4l0 12" /></svg></button>
+    <div style="position:relative">
+      <button class="icon-btn" onclick="toggleExportMenu(event)" title="Export backup" aria-label="Export backup"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2" /> <path d="M7 11l5 5l5 -5" /> <path d="M12 4l0 12" /></svg></button>
+      <div class="export-menu" id="exportMenu" style="right:0;top:calc(100% + 4px)">
+        <button onclick="exportData(false)">
+          <span class="em-title">Data only</span>
+          <span class="em-sub">Records & notes · small JSON</span>
+        </button>
+        <button onclick="exportData(true)">
+          <span class="em-title">Full backup</span>
+          <span class="em-sub">Includes attached images & PDFs</span>
+        </button>
+        <button onclick="accountAction()" id="accountMenuBtn" style="border-top:0.5px solid var(--border-2)">
+          <span class="em-title" id="accountMenuTitle">Sign out</span>
+          <span class="em-sub" id="accountMenuSub">Synced to cloud</span>
+        </button>
+      </div>
+    </div>
+    <button class="btn btn-primary btn-sm" onclick="openPetModal()"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5l0 14" /> <path d="M5 12l14 0" /></svg> Add pet</button>
+  </div>
+</div>
+
+<div class="container">
+  <div class="layout">
+    <div class="sidebar" id="sidebar"></div>
+    <div class="main" id="main"></div>
+  </div>
+</div>
+</div><!-- /app-shell -->
+
+<div class="modal-overlay" id="modalOverlay" onclick="handleOverlayClick(event)">
+  <div class="modal">
+    <div class="modal-hdr">
+      <span class="modal-title" id="modalTitle"></span>
+      <button class="modal-close" onclick="closeModal()"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6l-12 12" /> <path d="M6 6l12 12" /></svg></button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+    <div class="modal-foot" id="modalFoot"></div>
+  </div>
+</div>
+
+<div class="lightbox" id="lightbox" onclick="if(event.target.id==='lightbox')closeLightbox()">
+  <button class="lightbox-close" onclick="closeLightbox()"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6l-12 12" /> <path d="M6 6l12 12" /></svg></button>
+  <img id="lightboxImg" alt="">
+  <div class="lightbox-caption" id="lightboxCap"></div>
+</div>
+
+<input type="file" id="importInput" accept=".json" style="display:none" onchange="importData(this)">
+<input type="file" id="attachInput" accept="image/*,.pdf" style="display:none" onchange="handleAttachmentUpload(this)">
+
+<script>
+// ── CONSTANTS ─────────────────────────────────────────────────
+const EMOJIS = ['🐱','🐶','🐰','🐹','🦜','🐠','🐍','🦊','🐻','🐾','🦎','🐢','🐦','🐓','🦩'];
+const BG_COLORS = ['#eaf3de','#e6f1fb','#fbeaf0','#faeeda','#eeedfe','#e1f5ee','#faece7','#f1efe8'];
+const SPECIES = ['Cat','Dog','Rabbit','Bird','Fish','Hamster','Guinea Pig','Reptile','Other'];
+const PARASITE_TYPES = ['Flea & tick','Deworming','Ear mites','Heartworm','Mange','Other'];
+const PARASITE_FREQ  = ['Monthly','Every 2 months','Every 3 months','Every 6 months','Annually','As needed'];
+
+const ICONS = {
+  'alert-triangle':'<path d="M12 9v4" /> <path d="M10.363 3.591l-8.106 13.534a1.914 1.914 0 0 0 1.636 2.871h16.214a1.914 1.914 0 0 0 1.636 -2.87l-8.106 -13.536a1.914 1.914 0 0 0 -3.274 0" /> <path d="M12 16h.01" />',
+  'arrow-down':'<path d="M12 5l0 14" /> <path d="M18 13l-6 6" /> <path d="M6 13l6 6" />',
+  'cloud-upload':'<path d="M7 18a4.6 4.4 0 0 1 0 -9a5 4.5 0 0 1 11 2h1a3.5 3.5 0 0 1 0 7h-1" /> <path d="M9 15l3 -3l3 3" /> <path d="M12 12l0 9" />',
+  'download':'<path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2" /> <path d="M7 11l5 5l5 -5" /> <path d="M12 4l0 12" />',
+  'edit':'<path d="M7 7h-1a2 2 0 0 0 -2 2v9a2 2 0 0 0 2 2h9a2 2 0 0 0 2 -2v-1" /> <path d="M20.385 6.585a2.1 2.1 0 0 0 -2.97 -2.97l-8.415 8.385v3h3l8.385 -8.415" /> <path d="M16 5l3 3" />',
+  'file-text':'<path d="M14 3v4a1 1 0 0 0 1 1h4" /> <path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2" /> <path d="M9 9l1 0" /> <path d="M9 13l6 0" /> <path d="M9 17l6 0" />',
+  'files':'<path d="M15 3v4a1 1 0 0 0 1 1h4" /> <path d="M18 17h-7a2 2 0 0 1 -2 -2v-10a2 2 0 0 1 2 -2h4l5 5v7a2 2 0 0 1 -2 2" /> <path d="M16 17v2a2 2 0 0 1 -2 2h-7a2 2 0 0 1 -2 -2v-10a2 2 0 0 1 2 -2h2" />',
+  'id':'<path d="M3 7a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v10a3 3 0 0 1 -3 3h-12a3 3 0 0 1 -3 -3l0 -10" /> <path d="M7 10a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" /> <path d="M15 8l2 0" /> <path d="M15 12l2 0" /> <path d="M7 16l10 0" />',
+  'layout-grid':'<path d="M4 5a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1l0 -4" /> <path d="M14 5a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1l0 -4" /> <path d="M4 15a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1l0 -4" /> <path d="M14 15a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1l0 -4" />',
+  'moon':'<path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454l0 .008" />',
+  'paperclip':'<path d="M15 7l-6.5 6.5a1.5 1.5 0 0 0 3 3l6.5 -6.5a3 3 0 0 0 -6 -6l-6.5 6.5a4.5 4.5 0 0 0 9 9l6.5 -6.5" />',
+  'paw':'<path d="M14.7 13.5c-1.1 -2 -1.441 -2.5 -2.7 -2.5c-1.259 0 -1.736 .755 -2.836 2.747c-.942 1.703 -2.846 1.845 -3.321 3.291c-.097 .265 -.145 .677 -.143 .962c0 1.176 .787 2 1.8 2c1.259 0 3 -1 4.5 -1s3.241 1 4.5 1c1.013 0 1.8 -.823 1.8 -2c0 -.285 -.049 -.697 -.146 -.962c-.475 -1.451 -2.512 -1.835 -3.454 -3.538" /> <path d="M20.188 8.082a1.039 1.039 0 0 0 -.406 -.082h-.015c-.735 .012 -1.56 .75 -1.993 1.866c-.519 1.335 -.28 2.7 .538 3.052c.129 .055 .267 .082 .406 .082c.739 0 1.575 -.742 2.011 -1.866c.516 -1.335 .273 -2.7 -.54 -3.052l-.001 0" /> <path d="M9.474 9c.055 0 .109 0 .163 -.011c.944 -.128 1.533 -1.346 1.32 -2.722c-.203 -1.297 -1.047 -2.267 -1.932 -2.267c-.055 0 -.109 0 -.163 .011c-.944 .128 -1.533 1.346 -1.32 2.722c.204 1.293 1.048 2.267 1.933 2.267" /> <path d="M16.456 6.733c.214 -1.376 -.375 -2.594 -1.32 -2.722a1.164 1.164 0 0 0 -.162 -.011c-.885 0 -1.728 .97 -1.93 2.267c-.214 1.376 .375 2.594 1.32 2.722c.054 .007 .108 .011 .162 .011c.885 0 1.73 -.974 1.93 -2.267" /> <path d="M5.69 12.918c.816 -.352 1.054 -1.719 .536 -3.052c-.436 -1.124 -1.271 -1.866 -2.009 -1.866c-.14 0 -.277 .027 -.407 .082c-.816 .352 -1.054 1.719 -.536 3.052c.436 1.124 1.271 1.866 2.009 1.866c.14 0 .277 -.027 .407 -.082" />',
+  'photo':'<path d="M15 8h.01" /> <path d="M3 6a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v12a3 3 0 0 1 -3 3h-12a3 3 0 0 1 -3 -3v-12" /> <path d="M3 16l5 -5c.928 -.893 2.072 -.893 3 0l5 5" /> <path d="M14 14l1 -1c.928 -.893 2.072 -.893 3 0l3 3" />',
+  'pill':'<path d="M4.5 12.5l8 -8a4.94 4.94 0 0 1 7 7l-8 8a4.94 4.94 0 0 1 -7 -7" /> <path d="M8.5 8.5l7 7" />',
+  'plus':'<path d="M12 5l0 14" /> <path d="M5 12l14 0" />',
+  'printer':'<path d="M17 17h2a2 2 0 0 0 2 -2v-4a2 2 0 0 0 -2 -2h-14a2 2 0 0 0 -2 2v4a2 2 0 0 0 2 2h2" /> <path d="M17 9v-4a2 2 0 0 0 -2 -2h-6a2 2 0 0 0 -2 2v4" /> <path d="M7 15a2 2 0 0 1 2 -2h6a2 2 0 0 1 2 2v4a2 2 0 0 1 -2 2h-6a2 2 0 0 1 -2 -2l0 -4" />',
+  'scale':'<path d="M7 20l10 0" /> <path d="M6 6l6 -1l6 1" /> <path d="M12 3l0 17" /> <path d="M9 12l-3 -6l-3 6a3 3 0 0 0 6 0" /> <path d="M21 12l-3 -6l-3 6a3 3 0 0 0 6 0" />',
+  'shield':'<path d="M12 3a12 12 0 0 0 8.5 3a12 12 0 0 1 -8.5 15a12 12 0 0 1 -8.5 -15a12 12 0 0 0 8.5 -3" />',
+  'stethoscope':'<path d="M6 4h-1a2 2 0 0 0 -2 2v3.5a5.5 5.5 0 0 0 11 0v-3.5a2 2 0 0 0 -2 -2h-1" /> <path d="M8 15a6 6 0 1 0 12 0v-3" /> <path d="M11 3v2" /> <path d="M6 3v2" /> <path d="M18 10a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" />',
+  'sun':'<path d="M8 12a4 4 0 1 0 8 0a4 4 0 1 0 -8 0" /> <path d="M3 12h1m8 -9v1m8 8h1m-9 8v1m-6.4 -15.4l.7 .7m12.1 -.7l-.7 .7m0 11.4l.7 .7m-12.1 -.7l-.7 .7" />',
+  'trash':'<path d="M4 7l16 0" /> <path d="M10 11l0 6" /> <path d="M14 11l0 6" /> <path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12" /> <path d="M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3" />',
+  'trending-down':'<path d="M3 7l6 6l4 -4l8 8" /> <path d="M21 10l0 7l-7 0" />',
+  'upload':'<path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2" /> <path d="M7 9l5 -5l5 5" /> <path d="M12 4l0 12" />',
+  'user-heart':'<path d="M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0" /> <path d="M6 21v-2a4 4 0 0 1 4 -4h.5" /> <path d="M18 22l3.35 -3.284a2.143 2.143 0 0 0 .005 -3.071a2.242 2.242 0 0 0 -3.129 -.006l-.224 .22l-.223 -.22a2.242 2.242 0 0 0 -3.128 -.006a2.143 2.143 0 0 0 -.006 3.071l3.355 3.296" />',
+  'vaccine':'<path d="M17 3l4 4" /> <path d="M19 5l-4.5 4.5" /> <path d="M11.5 6.5l6 6" /> <path d="M16.5 11.5l-6.5 6.5h-4v-4l6.5 -6.5" /> <path d="M7.5 12.5l1.5 1.5" /> <path d="M10.5 9.5l1.5 1.5" /> <path d="M3 21l3 -3" />',
+  'x':'<path d="M18 6l-12 12" /> <path d="M6 6l12 12" />'
+};
+// Inline SVG icon helper (self-contained — no external font)
+function ic(name, extra) {
+  if(name && name.indexOf('ti-')===0) name = name.slice(3);
+  const p = ICONS[name] || '';
+  return `<svg class="ic${extra?' '+extra:''}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${p}</svg>`;
+}
+
+const TABS = [
+  { id:'all',          label:'All',         icon:'ti-layout-grid',  cls:'iall' },
+  { id:'vaccinations', label:'Vaccines',    icon:'ti-vaccine',      cls:'ig' },
+  { id:'medications',  label:'Meds',        icon:'ti-pill',         cls:'ib' },
+  { id:'vetVisits',    label:'Vet visits',  icon:'ti-stethoscope',  cls:'it' },
+  { id:'weight',       label:'Weight',      icon:'ti-scale',        cls:'ia' },
+  { id:'parasites',    label:'Parasites',   icon:'ti-shield-half',  cls:'iw' },
+  { id:'notes',        label:'Notes',       icon:'ti-clipboard-text', cls:'ic' },
+];
+
+// ── STATE ─────────────────────────────────────────────────────
+let state = { pets:[], activePetId:null };
+let activeTab = 'all';
+let searchQ = '';
+let modalCtx = {};
+let darkMode = false;
+let dateRange = 'all';   // 'all' | '7d' | '30d' | '90d' | '365d' | 'custom'
+let customStart = '';
+let customEnd = '';
+
+// ── SUPABASE CLOUD SYNC ───────────────────────────────────────
+const SUPABASE_URL = 'https://gfgabksonyyluhaqnibs.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_G_E6eCEf_cIHhfFNtWMNqQ_5Q4uClUM';
+const CACHE_KEY = 'petHealthLog_v4';   // local cache / offline fallback
+let sb = null;            // supabase client
+let currentUser = null;   // logged-in user object
+let offlineMode = false;  // user chose to skip login
+let syncReady = false;    // cloud load completed
+let saveTimer = null;     // debounce for cloud pushes
+
+function initSupabase() {
+  try {
+    if(window.supabase && SUPABASE_URL && SUPABASE_KEY) {
+      sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+      return true;
+    }
+  } catch(e) { console.error('Supabase init failed', e); }
+  return false;
+}
+
+// Local cache helpers (instant render + offline)
+function loadCache() {
+  try { const r=localStorage.getItem(CACHE_KEY); if(r) state=JSON.parse(r); } catch(e) {}
+  try { darkMode = localStorage.getItem('petLog_dark')==='true'; } catch(e) {}
+}
+function writeCache() {
+  try { localStorage.setItem(CACHE_KEY, JSON.stringify(state)); return true; }
+  catch(err) {
+    if(err && (err.name==='QuotaExceededError' || err.code===22 || err.code===1014)) {
+      showSync('Local cache full — cloud sync still works', 'err', 4000);
+    }
+    return false;
+  }
+}
+
+// loadState kept as a synchronous cache load (used at boot for instant paint)
+function loadState() { loadCache(); }
+
+// saveState writes cache immediately, then debounce-pushes to cloud
+function saveState() {
+  writeCache();
+  if(currentUser && sb && !offlineMode) {
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(pushToCloud, 700);
+  }
+  return true;
+}
+
+async function pushToCloud() {
+  if(!currentUser || !sb || offlineMode) return;
+  showSync('Saving…', '', 0);
+  try {
+    const { error } = await sb.from('pet_data').upsert({
+      user_id: currentUser.id,
+      data: state,
+      updated_at: new Date().toISOString()
+    }, { onConflict: 'user_id' });
+    if(error) throw error;
+    showSync('Saved', 'ok', 1500);
+  } catch(e) {
+    console.error('Cloud save failed', e);
+    showSync('Offline — saved locally, will retry', 'err', 3000);
+  }
+}
+
+async function pullFromCloud() {
+  if(!currentUser || !sb) return null;
+  try {
+    const { data, error } = await sb.from('pet_data').select('data').eq('user_id', currentUser.id).maybeSingle();
+    if(error) throw error;
+    return data ? data.data : null;
+  } catch(e) {
+    console.error('Cloud load failed', e);
+    showSync('Couldn\u2019t reach cloud — showing local copy', 'err', 3500);
+    return undefined;   // undefined = error (distinct from null = no row yet)
+  }
+}
+
+function showSync(text, cls, timeout) {
+  const pill = document.getElementById('syncPill');
+  const t = document.getElementById('syncPillText');
+  if(!pill || !t) return;
+  t.textContent = text;
+  pill.className = 'sync-pill' + (cls?(' '+cls):'');
+  pill.style.display = 'block';
+  pill.style.opacity = '1';
+  clearTimeout(pill._t);
+  if(timeout) pill._t = setTimeout(()=>{ pill.style.opacity='0'; setTimeout(()=>pill.style.display='none',300); }, timeout);
+}
+
+function genId() { return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+function getActivePet() { return state.pets.find(p=>p.id===state.activePetId)||null; }
+
+// ── FILE STORAGE (IndexedDB) ──────────────────────────────────
+const DB_NAME = 'petHealthFiles_v1';
+const STORE = 'files';
+const MAX_FILE_BYTES = 8 * 1024 * 1024; // 8 MB per file
+let _dbPromise = null;
+function openDB() {
+  if(_dbPromise) return _dbPromise;
+  return _dbPromise = new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, 1);
+    req.onupgradeneeded = e => {
+      const db = e.target.result;
+      if(!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE, { keyPath: 'id' });
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror   = () => reject(req.error);
+  });
+}
+function cloudFiles() { return currentUser && sb && !offlineMode; }
+function filePath(id) { return currentUser.id + '/' + id; }
+
+async function fileStore_put(file, recordId) {
+  const id = 'f_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2,8);
+  const meta = { id, name: file.name, type: file.type, size: file.size, addedAt: Date.now() };
+  if(cloudFiles()) {
+    const { error } = await sb.storage.from('attachments').upload(filePath(id), file, {
+      contentType: file.type || 'application/octet-stream', upsert: false
+    });
+    if(error) throw error;
+    return meta;
+  }
+  // offline → IndexedDB
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE, 'readwrite');
+    tx.objectStore(STORE).put({ ...meta, recordId, blob: file });
+    tx.oncomplete = () => resolve(meta);
+    tx.onerror    = () => reject(tx.error);
+  });
+}
+async function fileStore_get(id) {
+  if(cloudFiles()) {
+    try {
+      const { data, error } = await sb.storage.from('attachments').download(filePath(id));
+      if(error) throw error;
+      return { id, blob: data, type: data.type, name: id };
+    } catch(e) { /* fall through to local in case it was stored offline */ }
+  }
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const req = db.transaction(STORE, 'readonly').objectStore(STORE).get(id);
+    req.onsuccess = () => resolve(req.result || null);
+    req.onerror   = () => reject(req.error);
+  });
+}
+async function fileStore_delete(id) {
+  if(cloudFiles()) {
+    try { await sb.storage.from('attachments').remove([filePath(id)]); } catch(e) {}
+  }
+  try {
+    const db = await openDB();
+    await new Promise((resolve) => {
+      const tx = db.transaction(STORE, 'readwrite');
+      tx.objectStore(STORE).delete(id);
+      tx.oncomplete = resolve; tx.onerror = resolve;
+    });
+  } catch(e) {}
+}
+async function fileStore_all() {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const req = db.transaction(STORE, 'readonly').objectStore(STORE).getAll();
+    req.onsuccess = () => resolve(req.result || []);
+    req.onerror   = () => reject(req.error);
+  });
+}
+function fmtSize(bytes) {
+  if(!bytes) return '0 KB';
+  if(bytes < 1024) return bytes + ' B';
+  if(bytes < 1024*1024) return Math.round(bytes/1024) + ' KB';
+  return (bytes/1024/1024).toFixed(1) + ' MB';
+}
+function isImage(type) { return /^image\//.test(type||''); }
+function isPdf(type)   { return type === 'application/pdf'; }
+
+// Find attachment metadata (name/type) from state by file id
+function findAttachmentMeta(fileId) {
+  for(const pet of (state.pets||[])) {
+    for(const key of ['vetVisits','vaccinations','healthNotes']) {
+      for(const rec of (pet[key]||[])) {
+        const a = (rec.attachments||[]).find(x=>x.id===fileId);
+        if(a) return a;
+      }
+    }
+  }
+  return null;
+}
+
+// Open a file: image → lightbox, pdf → new tab, other → download
+async function openAttachment(fileId) {
+  const meta = findAttachmentMeta(fileId) || {};
+  let rec;
+  try { rec = await fileStore_get(fileId); } catch(e) { rec = null; }
+  if(!rec || !rec.blob) { alert('File not found. It may not have synced yet, or was removed.'); return; }
+  const type = meta.type || rec.type;
+  const name = meta.name || rec.name || 'file';
+  const url = URL.createObjectURL(rec.blob);
+  if(isImage(type)) {
+    openLightbox(url, name);
+  } else if(isPdf(type)) {
+    window.open(url, '_blank');
+  } else {
+    const a = document.createElement('a');
+    a.href = url; a.download = name; document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(()=>URL.revokeObjectURL(url), 5000);
+  }
+}
+function openLightbox(url, caption) {
+  document.getElementById('lightboxImg').src = url;
+  document.getElementById('lightboxCap').textContent = caption || '';
+  const lb = document.getElementById('lightbox');
+  lb.classList.add('open');
+  lb._url = url;
+}
+function closeLightbox() {
+  const lb = document.getElementById('lightbox');
+  lb.classList.remove('open');
+  if(lb._url) { setTimeout(()=>URL.revokeObjectURL(lb._url), 200); lb._url = null; }
+  document.getElementById('lightboxImg').src = '';
+}
+
+// In-memory cache of thumbnail data URLs for image attachments, so re-renders are cheap
+const _thumbCache = new Map();
+async function getThumb(fileId) {
+  if(_thumbCache.has(fileId)) return _thumbCache.get(fileId);
+  const meta = findAttachmentMeta(fileId) || {};
+  let rec;
+  try { rec = await fileStore_get(fileId); } catch(e) { rec = null; }
+  if(!rec || !rec.blob) return null;
+  const type = meta.type || rec.type;
+  if(!isImage(type)) return null;
+  const url = URL.createObjectURL(rec.blob);
+  _thumbCache.set(fileId, url);
+  return url;
+}
+
+// ── DARK MODE ─────────────────────────────────────────────────
+function applyDark() {
+  document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light');
+  document.getElementById('darkToggle').innerHTML = darkMode ? ic('sun') : ic('moon');
+}
+function toggleDark() {
+  darkMode = !darkMode;
+  localStorage.setItem('petLog_dark', darkMode);
+  applyDark();
+}
+
+// ── UTILS ─────────────────────────────────────────────────────
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;'); }
+function today() { return new Date().toISOString().split('T')[0]; }
+function fmt(d) {
+  if(!d) return '—';
+  const dt=new Date(d+'T12:00:00');
+  return isNaN(dt)?d:dt.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});
+}
+function fmtShort(d) {
+  if(!d) return '—';
+  const dt=new Date(d+'T12:00:00');
+  return isNaN(dt)?d:dt.toLocaleDateString('en-GB',{month:'short',year:'numeric'});
+}
+function petAge(bd) {
+  if(!bd) return '—';
+  const diff=Date.now()-new Date(bd+'T12:00:00');
+  const y=Math.floor(diff/(365.25*864e5));
+  const m=Math.floor((diff%(365.25*864e5))/(30.44*864e5));
+  if(y<1) return m<1?'< 1 mo':`${m} mo`;
+  return `${y} yr${y>1?'s':''} ${m>0?m+' mo':''}`.trim();
+}
+function daysUntil(d) {
+  if(!d) return null;
+  return Math.round((new Date(d+'T12:00:00')-new Date())/864e5);
+}
+function vacStatus(nextDue) {
+  const days=daysUntil(nextDue);
+  if(days===null) return {label:'No due date',cls:'pill-gray',dot:null};
+  if(days<0)   return {label:'Overdue',cls:'pill-red',dot:'dot-red'};
+  if(days<=30) return {label:'Due soon',cls:'pill-amber',dot:'dot-amber'};
+  return {label:'Current',cls:'pill-green',dot:null};
+}
+function parasiteStatus(nextDue) {
+  const days=daysUntil(nextDue);
+  if(days===null) return {label:'No due date',cls:'pill-gray',card:''};
+  if(days<0)   return {label:`Overdue by ${Math.abs(days)}d`,cls:'pill-red',card:'overdue'};
+  if(days<=14) return {label:`Due in ${days}d`,cls:'pill-amber',card:'due-soon'};
+  return {label:`Due ${fmt(nextDue)}`,cls:'pill-green',card:'current'};
+}
+function medStatusCls(s) {
+  return {active:'pill-green',prn:'pill-blue',completed:'pill-gray',discontinued:'pill-red'}[s]||'pill-gray';
+}
+function visitTypeCls(t) {
+  return {annual:'pill-green',checkup:'pill-green',sick:'pill-amber',booster:'pill-blue',dental:'pill-purple',emergency:'pill-red'}[t]||'pill-gray';
+}
+function speciesBadge(sp) {
+  return {Cat:'badge-cat',Dog:'badge-dog',Rabbit:'badge-rabbit',Bird:'badge-bird'}[sp]||'badge-other';
+}
+
+// alert level per pet
+function petAlertLevel(pet) {
+  const vaxIssues = (pet.vaccinations||[]).filter(v=>{
+    const d=daysUntil(v.nextDue); return d!==null && d<=30;
+  });
+  const parasiteIssues = (pet.parasites||[]).filter(p=>{
+    const d=daysUntil(p.nextDue); return d!==null && d<=14;
+  });
+  const overdue = vaxIssues.some(v=>daysUntil(v.nextDue)<0) || parasiteIssues.some(p=>daysUntil(p.nextDue)<0);
+  if(overdue) return 'dot-red';
+  if(vaxIssues.length||parasiteIssues.length) return 'dot-amber';
+  return null;
+}
+
+// ── AVATAR ────────────────────────────────────────────────────
+function avatarHTML(pet, size) {
+  const dim=size==='lg'?'64px':'36px';
+  const fs=size==='lg'?'32px':'18px';
+  if(pet.photo) return `<div style="width:${dim};height:${dim};border-radius:50%;overflow:hidden;flex-shrink:0"><img class="avatar-img" src="${pet.photo}" alt="${esc(pet.name)}"></div>`;
+  return `<div style="width:${dim};height:${dim};border-radius:50%;background:${pet.bgColor||'#eaf3de'};display:flex;align-items:center;justify-content:center;font-size:${fs};flex-shrink:0">${pet.emoji||'🐾'}</div>`;
+}
+
+// ── SIDEBAR ───────────────────────────────────────────────────
+function renderSidebar() {
+  const upcoming   = state.pets.flatMap(p=>p.vetVisits||[]).filter(v=>v.date>=today()).length;
+  const activeMeds = state.pets.flatMap(p=>p.medications||[]).filter(m=>m.status==='active').length;
+  document.getElementById('sidebar').innerHTML = `
+    <div class="sb-label">My pets</div>
+    ${state.pets.slice().sort((a,b)=>(a.name||'').localeCompare(b.name||'',undefined,{sensitivity:'base'})).map(p=>{
+      const dot=petAlertLevel(p);
+      return `<button class="pet-tab ${p.id===state.activePetId?'active':''}" onclick="selectPet('${p.id}')">
+        ${avatarHTML(p,'sm')}
+        <div style="flex:1;min-width:0">
+          <div class="pet-tab-name">${esc(p.name)}</div>
+          <div class="pet-tab-sub">${esc(p.species||'')}${p.birthdate?' · '+petAge(p.birthdate):''}</div>
+        </div>
+        ${dot?`<span class="badge-dot ${dot}"></span>`:''}
+      </button>`;
+    }).join('')}
+    <button class="add-pet-btn" onclick="openPetModal()"><span style="font-size:16px">+</span> Add a pet</button>
+    <div style="height:2px"></div>
+    <div class="sb-label">Overview</div>
+    <div class="stats-box">
+      <div class="stat-row"><span class="stat-lbl">Total pets</span><span class="stat-num">${state.pets.length}</span></div>
+      <div class="stat-row"><span class="stat-lbl">Upcoming visits</span><span class="stat-num">${upcoming}</span></div>
+      <div class="stat-row"><span class="stat-lbl">Active meds</span><span class="stat-num">${activeMeds}</span></div>
+    </div>`;
+}
+
+// ── MAIN ──────────────────────────────────────────────────────
+function renderMain() {
+  const pet=getActivePet();
+  if(!pet) {
+    document.getElementById('main').innerHTML=`<div class="welcome">
+      <div style="font-size:3.5rem;color:var(--green-dk)">${ic('paw')}</div>
+      <h2>Welcome to Pet Health Log</h2>
+      <p>Track vaccinations, medications, vet visits, weight, and more — all in one place.</p>
+      <button class="btn btn-primary" onclick="openPetModal()">${ic('plus')} Add your first pet</button>
+    </div>`;
+    return;
+  }
+  const conds=(pet.conditions||[]).filter(Boolean);
+  const lastExport=localStorage.getItem('petLog_lastExport');
+  const daysSince=lastExport?Math.floor((Date.now()-parseInt(lastExport))/864e5):999;
+  const banner=daysSince>=7?`<div class="backup-banner">
+    <span>${ic('alert-triangle')} <strong>Backup reminder:</strong> Export your data so you never lose it if you clear cache or switch devices.</span>
+    <button class="btn btn-sm" onclick="exportData(false)">Export now</button>
+  </div>`:'';
+
+  document.getElementById('main').innerHTML=`
+    <div class="pet-header-card">
+      <div class="pet-header-top">
+        ${avatarHTML(pet,'lg')}
+        <div class="pet-header-info">
+          <div class="pet-name-row">
+            <span class="pet-name">${esc(pet.name)}</span>
+            ${pet.species?`<span class="pet-badge ${speciesBadge(pet.species)}">${esc(pet.species)}</span>`:''}
+            ${conds.map(c=>`<span class="alert-chip">${ic('alert-triangle')} ${esc(c)}</span>`).join('')}
+          </div>
+          <div class="pet-sub-line">${[pet.breed, pet.sex, pet.birthdate?petAge(pet.birthdate):''].filter(Boolean).join(' · ')}</div>
+          <div class="pet-meta-mini">
+            ${pet.microchip?`<span>${ic('id')} ${esc(pet.microchip)}</span>`:''}
+            ${pet.vet?`<span>${ic('user-heart')} ${esc(pet.vet)}</span>`:''}
+            ${pet.insurance?`<span>${ic('shield')} ${esc(pet.insurance)}</span>`:''}
+          </div>
+        </div>
+        <div class="hdr-btn-group">
+          <button class="icon-btn" onclick="openPetModal('${pet.id}')" title="Edit pet" aria-label="Edit pet">${ic('edit')}</button>
+          <button class="icon-btn" onclick="confirmDeletePet('${pet.id}')" title="Remove pet" aria-label="Remove pet">${ic('trash')}</button>
+        </div>
+      </div>
+      ${renderPetMetrics(pet)}
+    </div>
+
+    ${renderNeedsAttn(pet)}
+
+    <div class="section-card">
+      <div class="section-tabs">
+        ${TABS.map(t=>`<button class="stab ${activeTab===t.id?'active':''}" onclick="switchTab('${t.id}')">${t.label}</button>`).join('')}
+      </div>
+      <div id="tabContent"></div>
+    </div>
+
+    ${banner}
+
+    ${renderFooterSummary(pet)}`;
+
+  renderTabContent(pet);
+}
+
+// ── PET METRICS (header cards) ────────────────────────────────
+// Gather all weights from weight logs + vet visits, sorted chronologically.
+function gatherWeights(pet) {
+  const pts = [];
+  (pet.weightLogs||[]).forEach(w => {
+    const val = parseFloat(w.weight);
+    if(w.date && val) pts.push({ date:w.date, weight:val, unit:w.unit||'kg', source:'log' });
+  });
+  (pet.vetVisits||[]).forEach(v => {
+    const val = parseFloat(v.weight);
+    if(v.date && val) pts.push({ date:v.date, weight:val, unit:v.weightUnit||'kg', source:'vet' });
+  });
+  return pts.sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+}
+
+function renderPetMetrics(pet) {
+  const weights = gatherWeights(pet);
+  const latestW = weights.length ? weights[weights.length-1] : null;
+
+  // Next vaccine or parasite due
+  let nextDue = null;
+  [...(pet.vaccinations||[]).map(v=>({d:v.nextDue,n:v.name})),
+   ...(pet.parasites||[]).map(p=>({d:p.nextDue,n:p.name}))].forEach(x=>{
+    const days = daysUntil(x.d);
+    if(days===null) return;
+    if(!nextDue || days < nextDue.days) nextDue = { days, name:x.n };
+  });
+
+  // Last vet visit (past)
+  const today_ = today();
+  const pastVisits = (pet.vetVisits||[]).filter(v=>v.date && v.date<=today_).sort((a,b)=>b.date.localeCompare(a.date));
+  const lastVisit = pastVisits[0] || null;
+
+  const weightCard = latestW
+    ? `<div class="mc"><div class="mc-l">${ic('scale')}Current weight</div><div class="mc-v">${latestW.weight} <small>${esc(latestW.unit)}</small></div></div>`
+    : `<div class="mc"><div class="mc-l">${ic('scale')}Current weight</div><div class="mc-v mc-empty">—</div></div>`;
+
+  let dueCard;
+  if(nextDue) {
+    const dueText = nextDue.days < 0 ? `${Math.abs(nextDue.days)}d` : nextDue.days===0 ? 'today' : `in ${nextDue.days}`;
+    const dueUnit = nextDue.days < 0 ? 'overdue' : (nextDue.days===0 ? '' : 'days');
+    const cls = nextDue.days < 0 ? 'mc-danger' : nextDue.days<=14 ? 'mc-warn' : '';
+    dueCard = `<div class="mc"><div class="mc-l">${ic('vaccine')}Next due</div><div class="mc-v ${cls}">${dueText} <small>${dueUnit}</small></div></div>`;
+  } else {
+    dueCard = `<div class="mc"><div class="mc-l">${ic('vaccine')}Next due</div><div class="mc-v mc-empty">—</div></div>`;
+  }
+
+  const visitCard = lastVisit
+    ? `<div class="mc"><div class="mc-l">${ic('stethoscope')}Last visit</div><div class="mc-v">${fmtDayMon(lastVisit.date)}</div></div>`
+    : `<div class="mc"><div class="mc-l">${ic('stethoscope')}Last visit</div><div class="mc-v mc-empty">—</div></div>`;
+
+  return `<div class="pet-metrics">${weightCard}${dueCard}${visitCard}</div>`;
+}
+
+function fmtDayMon(d) {
+  if(!d) return '—';
+  const dt=new Date(d+'T12:00:00');
+  if(isNaN(dt)) return d;
+  return `${dt.getDate()} <small>${dt.toLocaleDateString('en-GB',{month:'short'})}</small>`;
+}
+
+// ── FOOTER SUMMARY (stats + next upcoming) ────────────────────
+function renderFooterSummary(pet) {
+  // Total records across all categories
+  const recordKeys = ['vaccinations','medications','vetVisits','weightLogs','parasites','healthNotes'];
+  const totalRecords = recordKeys.reduce((sum,k)=>sum + (pet[k]?.length||0), 0);
+
+  // Active medications
+  const activeMeds = (pet.medications||[]).filter(m=>m.status==='active').length;
+
+  // Days since last backup
+  const lastExport = localStorage.getItem('petLog_lastExport');
+  const backupDays = lastExport ? Math.floor((Date.now()-parseInt(lastExport))/864e5) : null;
+  const backupTxt = backupDays===null ? 'never' : backupDays===0 ? 'today' : `${backupDays}`;
+  const backupUnit = (backupDays===null || backupDays===0) ? '' : (backupDays===1?'day':'days');
+  const backupCls = (backupDays===null || backupDays>=7) ? 'fs-warn' : '';
+
+  // Next upcoming item (any future or overdue due date / scheduled visit), nearest first
+  const today_ = today();
+  const upcoming = [];
+  (pet.vaccinations||[]).forEach(v=>{ if(v.nextDue) upcoming.push({date:v.nextDue, title:`${v.name||'Vaccine'} due`, sub:'Vaccine', tab:'vaccinations'}); });
+  (pet.parasites||[]).forEach(p=>{ if(p.nextDue) upcoming.push({date:p.nextDue, title:`${p.name||'Treatment'} due`, sub:p.frequency||'Parasite treatment', tab:'parasites'}); });
+  (pet.vetVisits||[]).forEach(v=>{ if(v.date && v.date>=today_) upcoming.push({date:v.date, title:`${(v.type||'Visit').charAt(0).toUpperCase()+(v.type||'Visit').slice(1)}${v.vet?' with '+v.vet:''}`, sub:v.clinic||'Vet visit', tab:'vetVisits'}); });
+  upcoming.sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+  const next = upcoming[0] || null;
+
+  let nextRow = '';
+  if(next) {
+    const dt = new Date(next.date+'T12:00:00');
+    const day = isNaN(dt)?'–':String(dt.getDate()).padStart(2,'0');
+    const mon = isNaN(dt)?'':dt.toLocaleDateString('en-GB',{month:'short'});
+    const d = daysUntil(next.date);
+    const whenTxt = d===null ? '' : d<0 ? `${Math.abs(d)}d overdue` : d===0 ? 'today' : `in ${d}d`;
+    const whenCls = d!==null && d<0 ? 'fw-overdue' : (d!==null && d<=14 ? 'fw-soon' : '');
+    nextRow = `<div class="fs-next" onclick="switchTab('${next.tab}')">
+      <div class="fs-next-date"><div class="fs-next-d">${day}</div><div class="fs-next-m">${mon}</div></div>
+      <div class="fs-next-body">
+        <div class="fs-next-t">${esc(next.title)}</div>
+        <div class="fs-next-sub">Next up · ${esc(next.sub)}</div>
+      </div>
+      <span class="fs-when ${whenCls}">${whenTxt}</span>
+    </div>`;
+  } else {
+    nextRow = `<div class="fs-next-empty">Nothing scheduled — add a due date to a vaccine or treatment to see it here.</div>`;
+  }
+
+  return `<div class="footer-summary">
+    <div class="fs-stats">
+      <div class="fs-stat"><div class="fs-v">${totalRecords}</div><div class="fs-l">${ic('files')}Records</div></div>
+      <div class="fs-stat"><div class="fs-v">${activeMeds}</div><div class="fs-l">${ic('pill')}Active meds</div></div>
+      <div class="fs-stat"><div class="fs-v ${backupCls}">${backupTxt} <small>${backupUnit}</small></div><div class="fs-l">${ic('cloud-upload')}Since backup</div></div>
+    </div>
+    ${nextRow}
+  </div>`;
+}
+
+// ── TAB CONTENT ───────────────────────────────────────────────
+function renderTabContent(pet) {
+  const el=document.getElementById('tabContent'); if(!el) return;
+  searchQ='';
+  const map={all:allView,vaccinations,medications,vetVisits,weight,parasites,notes};
+  el.innerHTML=(map[activeTab]||function(){return '';})(pet);
+}
+
+function secToolbar(icon,cls,title,section,btnLabel,showSearch=true) {
+  return `<div class="sec-toolbar">
+    <div class="sec-title"><div class="s-ic ${cls}">${ic(icon)}</div>${title}</div>
+    <div class="sec-right">
+      ${showSearch?`<input class="search-input" id="searchBox" placeholder="Search…" oninput="doSearch('${section}')" value="${esc(searchQ)}">`:''}
+      <button class="add-row-btn" onclick="openAddModal('${section}')">${ic('plus')} ${btnLabel}</button>
+    </div>
+  </div>`;
+}
+function doSearch(section) {
+  searchQ=document.getElementById('searchBox')?.value||'';
+  renderTabContent(getActivePet());
+  // restore focus
+  const sb=document.getElementById('searchBox');
+  if(sb){sb.focus();sb.setSelectionRange(sb.value.length,sb.value.length);}
+}
+function emptyState(icon,msg,ctaLabel,ctaSection) {
+  const cta = ctaLabel && ctaSection
+    ? `<div class="empty-cta"><button class="empty-cta-btn" onclick="openAddModal('${ctaSection}')">${ic('plus')} ${ctaLabel}</button></div>`
+    : '';
+  return `<div class="empty-state"><div class="ei">${ic(icon)}</div><p>${msg}</p>${cta}</div>`;
+}
+function noResults() { return `<div class="no-results">No results for "${esc(searchQ)}"</div>`; }
+function matches(str) { return String(str||'').toLowerCase().includes(searchQ.toLowerCase()); }
+
+// ── ALL / TIMELINE ────────────────────────────────────────────
+const KIND_META = {
+  vaccination: { icon:'ti-vaccine',        label:'Vaccine',    cls:'ig', section:'vaccination' },
+  medication:  { icon:'ti-pill',           label:'Medication', cls:'ib', section:'medication' },
+  vetVisit:    { icon:'ti-stethoscope',    label:'Vet visit',  cls:'it', section:'vetVisit' },
+  weightLog:   { icon:'ti-scale',          label:'Weight',     cls:'ia', section:'weightLog' },
+  parasite:    { icon:'ti-shield-half',    label:'Parasite',   cls:'iw', section:'parasite' },
+  healthNote:  { icon:'ti-clipboard-text', label:'Note',       cls:'ic', section:'healthNote' },
+};
+
+function gatherEvents(pet) {
+  const events = [];
+  (pet.vaccinations||[]).forEach(v => {
+    if(!v.dateGiven) return;
+    const st = vacStatus(v.nextDue);
+    events.push({
+      kind:'vaccination', id:v.id, date:v.dateGiven,
+      title:v.name||'Vaccination',
+      sub:[v.description, v.vet].filter(Boolean).join(' · '),
+      meta:v.nextDue?`Next due ${fmt(v.nextDue)}`:'',
+      pill:v.nextDue?{label:st.label,cls:st.cls}:null
+    });
+  });
+  (pet.medications||[]).forEach(m => {
+    if(!m.startDate && !m.endDate) return;
+    events.push({
+      kind:'medication', id:m.id, date:m.startDate||m.endDate,
+      title:m.name||'Medication',
+      sub:[m.dosage, m.frequency, m.purpose].filter(Boolean).join(' · '),
+      meta:m.endDate&&m.startDate?`${fmt(m.startDate)} → ${fmt(m.endDate)}`:'',
+      pill:{label:m.status||'active',cls:medStatusCls(m.status)}
+    });
+  });
+  (pet.vetVisits||[]).forEach(v => {
+    if(!v.date) return;
+    events.push({
+      kind:'vetVisit', id:v.id, date:v.date,
+      title:v.summary?v.summary.split(/[.\n]/)[0]:`${v.type||'Visit'}`,
+      sub:[v.vet, v.clinic].filter(Boolean).join(' · '),
+      meta:v.followUp?`Follow-up: ${v.followUp}`:'',
+      pill:{label:v.type||'visit',cls:visitTypeCls(v.type)}
+    });
+  });
+  (pet.weightLogs||[]).forEach(w => {
+    if(!w.date) return;
+    events.push({
+      kind:'weightLog', id:w.id, date:w.date,
+      title:`${w.weight} ${w.unit||'kg'}`,
+      sub:w.notes||'',
+      meta:'', pill:null
+    });
+  });
+  (pet.parasites||[]).forEach(p => {
+    if(!p.lastDone) return;
+    const st=parasiteStatus(p.nextDue);
+    events.push({
+      kind:'parasite', id:p.id, date:p.lastDone,
+      title:p.name||'Treatment',
+      sub:[p.type, p.product].filter(Boolean).join(' · '),
+      meta:p.frequency?`Frequency: ${p.frequency}`:'',
+      pill:p.nextDue?{label:st.label,cls:st.cls}:null
+    });
+  });
+  (pet.healthNotes||[]).forEach(n => {
+    if(!n.date) return;
+    events.push({
+      kind:'healthNote', id:n.id, date:n.date,
+      title:(n.text||'').slice(0,140)+((n.text||'').length>140?'…':''),
+      sub:'', meta:'',
+      pill:n.type&&n.type!=='normal'?{label:n.type,cls:n.type==='good'?'pill-green':'pill-amber'}:null
+    });
+  });
+  return events.sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+}
+
+function withinRange(dateStr) {
+  if(dateRange==='all') return true;
+  if(!dateStr) return false;
+  const d = new Date(dateStr+'T12:00:00');
+  if(isNaN(d)) return false;
+  if(dateRange==='custom') {
+    if(customStart && d < new Date(customStart+'T00:00:00')) return false;
+    if(customEnd   && d > new Date(customEnd+'T23:59:59')) return false;
+    return true;
+  }
+  const days = {'7d':7,'30d':30,'90d':90,'365d':365}[dateRange];
+  if(!days) return true;
+  const cutoff = new Date(); cutoff.setHours(0,0,0,0); cutoff.setDate(cutoff.getDate()-days);
+  return d >= cutoff;
+}
+
+function setRange(r) { dateRange=r; renderTabContent(getActivePet()); }
+function setCustomRange() {
+  customStart = document.getElementById('rangeStart').value;
+  customEnd   = document.getElementById('rangeEnd').value;
+  dateRange = 'custom';
+  renderTabContent(getActivePet());
+}
+
+function rangeBar() {
+  const pills = [
+    {id:'all',label:'All time'},
+    {id:'7d',label:'7 days'},
+    {id:'30d',label:'30 days'},
+    {id:'90d',label:'90 days'},
+    {id:'365d',label:'1 year'},
+  ].map(p=>`<button class="range-pill ${dateRange===p.id?'active':''}" onclick="setRange('${p.id}')">${p.label}</button>`).join('');
+  return `<div class="range-bar">
+    <span class="range-lbl">Range</span>
+    ${pills}
+    <span class="range-custom">
+      <input type="date" id="rangeStart" value="${customStart}" onchange="setCustomRange()" max="${today()}">
+      <span>→</span>
+      <input type="date" id="rangeEnd" value="${customEnd}" onchange="setCustomRange()" max="${today()}">
+    </span>
+  </div>`;
+}
+
+function allView(pet) {
+  const all = gatherEvents(pet);
+  const toolbar = `<div class="sec-toolbar">
+    <div class="sec-title"><div class="s-ic iall">${ic('layout-grid')}</div>All activity</div>
+    <div class="sec-right">
+      <input class="search-input" id="searchBox" placeholder="Search…" oninput="doSearch('all')" value="${esc(searchQ)}">
+    </div>
+  </div>${rangeBar()}`;
+  if(!all.length) return toolbar+emptyState('ti-layout-grid','Nothing logged yet — add a vaccination, vet visit, or note to get started');
+
+  let items = all.filter(e=>withinRange(e.date));
+  if(searchQ) items = items.filter(e=>matches(e.title)||matches(e.sub)||matches(e.meta)||matches(KIND_META[e.kind].label));
+  if(!items.length) return toolbar+`<div class="no-results">No events in this range${searchQ?` for "${esc(searchQ)}"`:''}.</div>`;
+
+  // group by month
+  let html='', curMonth='';
+  const today_ = today();
+  items.forEach(e => {
+    const dt = new Date(e.date+'T12:00:00');
+    const monthKey = isNaN(dt) ? 'No date' : dt.toLocaleDateString('en-GB',{month:'long',year:'numeric'});
+    if(monthKey !== curMonth) {
+      html += `<div class="timeline-month">${monthKey}</div>`;
+      curMonth = monthKey;
+    }
+    const km = KIND_META[e.kind];
+    const day = isNaN(dt) ? '–' : String(dt.getDate()).padStart(2,'0');
+    const monShort = isNaN(dt) ? '' : dt.toLocaleDateString('en-GB',{month:'short'});
+    const isUpcoming = e.date >= today_;
+    const metaParts = [km.label];
+    if(e.sub)  metaParts.push(e.sub);
+    if(e.meta) metaParts.push(e.meta);
+    const metaText = metaParts.join(' · ');
+    html += `<div class="timeline-row">
+      <div class="tl-date"><div class="tl-date-inner ${isUpcoming?'upcoming':''}">
+        <div class="tl-day">${day}</div>
+        <div class="tl-mon">${monShort}</div>
+      </div></div>
+      <div class="tl-content">
+        <div class="tl-title-row">
+          <span class="tl-title">${esc(e.title)}</span>
+          ${e.pill?`<span class="pill ${e.pill.cls}">${esc(e.pill.label)}</span>`:''}
+        </div>
+        <div class="tl-meta">${esc(metaText)}</div>
+      </div>
+      <div class="tl-actions">
+        <button class="ra-btn" onclick="openRecordModal('${km.section}','${e.id}')">${ic('edit')}</button>
+        <button class="ra-btn del" onclick="confirmDeleteRecord('${km.section}','${e.id}')">${ic('x')}</button>
+      </div>
+    </div>`;
+  });
+  return toolbar + html;
+}
+
+// ── NEEDS ATTENTION ───────────────────────────────────────────
+function needsAttention(pet) {
+  const items = [];
+  (pet.vaccinations||[]).forEach(v => {
+    const d = daysUntil(v.nextDue);
+    if(d===null) return;
+    if(d<0)        items.push({kind:'overdue', icon:'ti-vaccine', label:`${v.name||'Vaccine'} overdue`,   when:`${Math.abs(d)}d overdue`, days:Math.abs(d), tab:'vaccinations', sortKey:d});
+    else if(d<=30) items.push({kind:'soon',    icon:'ti-vaccine', label:`${v.name||'Vaccine'} due`,        when:d===0?'today':`in ${d}d`, days:d, tab:'vaccinations', sortKey:d+1000});
+  });
+  (pet.parasites||[]).forEach(p => {
+    const d = daysUntil(p.nextDue);
+    if(d===null) return;
+    if(d<0)        items.push({kind:'overdue', icon:'ti-shield-half', label:`${p.name||'Treatment'} overdue`, when:`${Math.abs(d)}d overdue`, days:Math.abs(d), tab:'parasites', sortKey:d});
+    else if(d<=14) items.push({kind:'soon',    icon:'ti-shield-half', label:`${p.name||'Treatment'} due`,     when:d===0?'today':`in ${d}d`, days:d, tab:'parasites', sortKey:d+1000});
+  });
+  (pet.vetVisits||[]).forEach(v => {
+    const d = daysUntil(v.date);
+    if(d===null) return;
+    if(d>=0 && d<=30) items.push({
+      kind:'upcoming', icon:'ti-stethoscope',
+      label:`${(v.type||'Visit').charAt(0).toUpperCase()+(v.type||'Visit').slice(1)}${v.vet?' · '+v.vet:''}`,
+      when:d===0?'today':`in ${d}d`, days:d, tab:'vetVisits', sortKey:d+2000
+    });
+  });
+  return items.sort((a,b)=>a.sortKey-b.sortKey);
+}
+
+function renderNeedsAttn(pet) {
+  const items = needsAttention(pet);
+  if(!items.length) return '';
+  const labels = {
+    overdue: 'Pet Health · Overdue',
+    soon: 'Pet Health · Reminder',
+    upcoming: 'Pet Health · Upcoming'
+  };
+  // Build a "sub" line per item — descriptive context
+  const buildSub = (it) => {
+    if(it.kind==='overdue')  return `Was due ${it.days} day${it.days===1?'':'s'} ago — tap to update`;
+    if(it.kind==='soon')     return it.when==='today' ? 'Due today — tap for details' : `Due ${it.when} — tap for details`;
+    if(it.kind==='upcoming') return it.when==='today' ? 'Scheduled for today' : `Scheduled ${it.when}`;
+    return '';
+  };
+  return `<div class="notif-stack">${items.map(i=>`
+    <div class="notif-card ${i.kind}" onclick="switchTab('${i.tab}')">
+      <div class="notif-icon">${ic(i.icon)}</div>
+      <div class="notif-body">
+        <div class="notif-meta-row">
+          <span class="notif-app">${labels[i.kind]}</span>
+          <span class="notif-time">${i.when}</span>
+        </div>
+        <div class="notif-title">${esc(i.label)}</div>
+        <div class="notif-sub">${esc(buildSub(i))}</div>
+      </div>
+    </div>`).join('')}
+  </div>`;
+}
+
+// ── VACCINATIONS ──────────────────────────────────────────────
+function vaccinations(pet) {
+  let items=[...(pet.vaccinations||[])].sort((a,b)=>{
+    // overdue/due-soon first, then by date given desc
+    const aDays=daysUntil(a.nextDue), bDays=daysUntil(b.nextDue);
+    const aUrgent = aDays!==null && aDays<=30 ? 0 : 1;
+    const bUrgent = bDays!==null && bDays<=30 ? 0 : 1;
+    if(aUrgent!==bUrgent) return aUrgent-bUrgent;
+    if(aUrgent===0) return (aDays??99999)-(bDays??99999);
+    return (b.dateGiven||'').localeCompare(a.dateGiven||'');
+  });
+  const toolbar=secToolbar('ti-vaccine','ig','Vaccination record','vaccination','Add vaccine');
+  if(!items.length) return toolbar+emptyState('ti-vaccine','No vaccinations logged yet','Add vaccine','vaccination');
+  if(searchQ) items=items.filter(v=>matches(v.name)||matches(v.vet)||matches(v.description));
+  if(!items.length) return toolbar+noResults();
+  const rows=items.map(v=>{
+    const st=vacStatus(v.nextDue);
+    return `<tr>
+      <td><strong>${esc(v.name)}</strong>${v.description?`<div class="td-sub">${esc(v.description)}</div>`:''}</td>
+      <td>${fmt(v.dateGiven)}</td><td>${esc(v.vet||'—')}</td>
+      <td>${v.nextDue?fmt(v.nextDue):'—'}</td>
+      <td><span class="pill ${st.cls}">${st.label}</span></td>
+      <td><div class="row-actions">
+        <button class="ra-btn" onclick="openRecordModal('vaccination','${v.id}')">${ic('edit')}</button>
+        <button class="ra-btn del" onclick="confirmDeleteRecord('vaccination','${v.id}')">${ic('x')}</button>
+      </div></td></tr>`;
+  }).join('');
+  return toolbar+`<div style="overflow-x:auto"><table class="data-table"><thead><tr>
+    <th>Vaccine</th><th>Date given</th><th>Administered by</th><th>Next due</th><th>Status</th><th></th>
+  </tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+
+// ── MEDICATIONS ───────────────────────────────────────────────
+function medications(pet) {
+  const statusOrder = {active:0, prn:1, completed:2, discontinued:3};
+  let items=[...(pet.medications||[])].sort((a,b)=>{
+    const sa = statusOrder[a.status] ?? 4;
+    const sb = statusOrder[b.status] ?? 4;
+    if(sa!==sb) return sa-sb;
+    return (b.startDate||'').localeCompare(a.startDate||'');
+  });
+  const toolbar=secToolbar('ti-pill','ib','Medications','medication','Add medication');
+  if(!items.length) return toolbar+emptyState('ti-pill','No medications logged yet','Add medication','medication');
+  if(searchQ) items=items.filter(m=>matches(m.name)||matches(m.purpose)||matches(m.status));
+  if(!items.length) return toolbar+noResults();
+  const rows=items.map(m=>`<tr>
+    <td><strong>${esc(m.name)}</strong>${m.purpose?`<div class="td-sub">${esc(m.purpose)}</div>`:''}</td>
+    <td>${esc(m.dosage||'—')}</td><td>${esc(m.frequency||'—')}</td>
+    <td>${m.startDate||m.endDate?`${fmt(m.startDate)}${m.endDate?' – '+fmt(m.endDate):''}` : 'Ongoing'}</td>
+    <td><span class="pill ${medStatusCls(m.status)}">${esc(m.status||'active')}</span></td>
+    <td><div class="row-actions">
+      <button class="ra-btn" onclick="openRecordModal('medication','${m.id}')">${ic('edit')}</button>
+      <button class="ra-btn del" onclick="confirmDeleteRecord('medication','${m.id}')">${ic('x')}</button>
+    </div></td></tr>`).join('');
+  return toolbar+`<div style="overflow-x:auto"><table class="data-table"><thead><tr>
+    <th>Medication</th><th>Dosage</th><th>Frequency</th><th>Duration</th><th>Status</th><th></th>
+  </tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+
+// ── VET VISITS ────────────────────────────────────────────────
+function vetVisits(pet) {
+  let items=[...(pet.vetVisits||[])].sort((a,b)=>{
+    // upcoming first (asc), then past (desc), empty dates last
+    if(!a.date && !b.date) return 0;
+    if(!a.date) return 1;
+    if(!b.date) return -1;
+    const today_=today();
+    const aUp = a.date>=today_, bUp = b.date>=today_;
+    if(aUp && !bUp) return -1;
+    if(!aUp && bUp) return 1;
+    if(aUp && bUp)  return (a.date||'').localeCompare(b.date||'');
+    return (b.date||'').localeCompare(a.date||'');
+  });
+  const toolbar=secToolbar('ti-stethoscope','it','Vet visit history','vetVisit','Log visit');
+  if(!items.length) return toolbar+emptyState('ti-stethoscope','No vet visits logged yet','Log visit','vetVisit');
+  if(searchQ) items=items.filter(v=>matches(v.vet)||matches(v.clinic)||matches(v.summary)||matches(v.type)||matches(v.followUp));
+  if(!items.length) return toolbar+noResults();
+
+  const today_=today();
+  // Group by month, with upcoming as its own group
+  let html='', curGroup='';
+  items.forEach(v=>{
+    const dt = v.date ? new Date(v.date+'T12:00:00') : null;
+    const isUpcoming = v.date && v.date>=today_;
+    const groupKey = !v.date ? 'No date'
+                   : isUpcoming ? dt.toLocaleDateString('en-GB',{month:'long',year:'numeric'}) + ' · upcoming'
+                   : dt.toLocaleDateString('en-GB',{month:'long',year:'numeric'});
+    if(groupKey !== curGroup) {
+      html += `<div class="timeline-month">${groupKey}</div>`;
+      curGroup = groupKey;
+    }
+    const day = !dt ? '–' : String(dt.getDate()).padStart(2,'0');
+    const monShort = !dt ? '' : dt.toLocaleDateString('en-GB',{month:'short'});
+
+    // Title = first sentence of summary, fallback to capitalized type
+    const summary = (v.summary||'').trim();
+    let title;
+    if(summary) {
+      const m = summary.match(/^[^.\n]{1,140}(?:\.|$|\n)/);
+      title = m ? m[0].replace(/\.$/,'').trim() : summary.slice(0, 100);
+    } else {
+      const t = v.type || 'visit';
+      title = t.charAt(0).toUpperCase()+t.slice(1)+' visit';
+    }
+
+    // Meta: vet · clinic · weight
+    const metaParts = [];
+    if(v.vet) metaParts.push(v.vet);
+    if(v.clinic && v.clinic !== v.vet) metaParts.push(v.clinic);
+    if(v.weight) metaParts.push(v.weight + ' ' + (v.weightUnit||'kg'));
+    const metaText = metaParts.join(' · ');
+
+    // Note: show full summary if it differs from title; with 3-line truncation
+    const restOfSummary = summary && summary.length > title.length+5 ? summary : '';
+    const noteId = 'note_'+v.id;
+    const noteHtml = restOfSummary ? `
+      <div class="tl-note" id="${noteId}">${esc(restOfSummary)}</div>
+      <button class="tl-expand" onclick="toggleNote('${noteId}', this)">Read more ↓</button>` : '';
+
+    // Attachments
+    const atts = v.attachments || [];
+    const attsHtml = atts.length ? `<div class="attach-row">${atts.map(a=>{
+      const safe = esc(a.name);
+      const chipIcon = isImage(a.type)?'photo':isPdf(a.type)?'file-text':'paperclip';
+      const short = a.name.length>22 ? a.name.slice(0,20)+'…' : a.name;
+      return `<span class="attach-chip" onclick="event.stopPropagation();openAttachment('${a.id}')" title="${safe}"><span class="ac-ic">${ic(chipIcon)}</span>${esc(short)}</span>`;
+    }).join('')}</div>` : '';
+
+    // Follow-up
+    const followupHtml = v.followUp ? `<div class="tl-followup">Follow-up: ${esc(v.followUp)}</div>` : '';
+
+    html += `<div class="timeline-row">
+      <div class="tl-date"><div class="tl-date-inner ${isUpcoming?'upcoming':''}">
+        <div class="tl-day">${day}</div>
+        <div class="tl-mon">${monShort}</div>
+      </div></div>
+      <div class="tl-content">
+        <div class="tl-title-row">
+          <span class="tl-title">${esc(title)}</span>
+          ${v.type?`<span class="pill ${visitTypeCls(v.type)}">${esc(v.type)}</span>`:''}
+        </div>
+        ${metaText?`<div class="tl-meta">${esc(metaText)}</div>`:''}
+        ${noteHtml}
+        ${attsHtml}
+        ${followupHtml}
+      </div>
+      <div class="tl-actions">
+        <button class="ra-btn" onclick="openRecordModal('vetVisit','${v.id}')">${ic('edit')}</button>
+        <button class="ra-btn del" onclick="confirmDeleteRecord('vetVisit','${v.id}')">${ic('x')}</button>
+      </div>
+    </div>`;
+  });
+  return toolbar + html;
+}
+
+// Toggle inline note expansion
+function toggleNote(id, btn) {
+  const el = document.getElementById(id);
+  if(!el) return;
+  const expanded = el.classList.toggle('expanded');
+  btn.textContent = expanded ? 'Read less ↑' : 'Read more ↓';
+}
+
+// ── WEIGHT ────────────────────────────────────────────────────
+function weight(pet) {
+  const toolbar=secToolbar('ti-scale','ia','Weight','weightLog','Log weight',false);
+  const allPts = gatherWeights(pet);             // logs + vet visits, chronological
+  const logItems=[...(pet.weightLogs||[])].sort((a,b)=>(b.date||'').localeCompare(a.date||'')); // newest first for list
+  if(!allPts.length) return toolbar+emptyState('ti-scale','No weight entries yet','Log weight','weightLog');
+
+  const unit = allPts[allPts.length-1].unit || 'kg';
+  const latest = allPts[allPts.length-1];
+  const vals = allPts.map(p=>p.weight);
+  const lowest = Math.min(...vals);
+
+  // 90-day change: compare latest to the earliest point within ~90 days before it
+  const latestDate = new Date(latest.date+'T12:00:00');
+  const cutoff = new Date(latestDate); cutoff.setDate(cutoff.getDate()-90);
+  const within = allPts.filter(p=>new Date(p.date+'T12:00:00') >= cutoff);
+  const baseline = within.length>1 ? within[0] : (allPts.length>1 ? allPts[0] : null);
+  const change = baseline ? (latest.weight - baseline.weight) : null;
+  const chgCls = change===null ? '' : change>0 ? 'mc-warn' : change<0 ? 'mc-danger' : '';
+  const chgTxt = change===null ? '—' : `${change>0?'+':''}${change.toFixed(1)}`;
+
+  const metrics=`<div class="metrics-grid">
+    <div class="mc"><div class="mc-l">${ic('scale')}Current</div><div class="mc-v">${latest.weight} <small>${unit}</small></div></div>
+    <div class="mc"><div class="mc-l">${ic('trending-down')}Change (90d)</div><div class="mc-v ${chgCls}">${chgTxt} <small>${change===null?'':unit}</small></div></div>
+    <div class="mc"><div class="mc-l">${ic('arrow-down')}Lowest</div><div class="mc-v">${lowest} <small>${unit}</small></div></div>
+  </div>`;
+
+  const chart = weightChartSVG(allPts, unit);
+
+  const legend = `<div class="wchart-legend">
+    <span><span class="lg-dot" style="background:#BA7517"></span>Weight log</span>
+    <span><span class="lg-dot" style="background:#1d9e75"></span>From vet visits</span>
+  </div>`;
+
+  // Entry list (manual weight logs only — vet weights are edited on the vet visit)
+  let list = '';
+  if(logItems.length) {
+    list = `<div class="wlist">${logItems.map(w=>`
+      <div class="wlist-row">
+        <div class="wlist-date">${fmt(w.date)}</div>
+        <div class="wlist-val">${esc(w.weight)} <small>${esc(w.unit||'kg')}</small></div>
+        ${w.notes?`<div class="wlist-note">${esc(w.notes)}</div>`:'<div class="wlist-note"></div>'}
+        <div class="w-acts">
+          <button class="ra-btn" onclick="openRecordModal('weightLog','${w.id}')">${ic('edit')}</button>
+          <button class="ra-btn del" onclick="confirmDeleteRecord('weightLog','${w.id}')">${ic('x')}</button>
+        </div>
+      </div>`).join('')}</div>`;
+  } else {
+    list = `<div class="wlist-empty">All weights shown come from vet visits. Use “Log weight” to add a standalone entry.</div>`;
+  }
+
+  return toolbar + metrics + legend + `<div class="wchart-wrap">${chart}</div>` + list;
+}
+
+// Hand-built responsive SVG line chart (no external library)
+function weightChartSVG(pts, unit) {
+  if(pts.length < 1) return '';
+  const W = 640, H = 200, padL = 38, padR = 14, padT = 16, padB = 28;
+  const innerW = W - padL - padR, innerH = H - padT - padB;
+  const vals = pts.map(p=>p.weight);
+  let minV = Math.min(...vals), maxV = Math.max(...vals);
+  if(minV === maxV) { minV -= 0.5; maxV += 0.5; }   // flat line padding
+  const range = maxV - minV;
+  minV -= range*0.12; maxV += range*0.12;            // headroom
+  const span = maxV - minV;
+
+  const n = pts.length;
+  const x = i => n===1 ? padL+innerW/2 : padL + (i/(n-1))*innerW;
+  const y = v => padT + (1-(v-minV)/span)*innerH;
+
+  // Y gridlines (3)
+  let grid='';
+  for(let g=0; g<=2; g++){
+    const gv = minV + (span*g/2);
+    const gy = y(gv);
+    grid += `<line x1="${padL}" y1="${gy.toFixed(1)}" x2="${W-padR}" y2="${gy.toFixed(1)}" class="wc-grid"/>`;
+    grid += `<text x="${padL-7}" y="${(gy+3).toFixed(1)}" class="wc-axis" text-anchor="end">${gv.toFixed(1)}</text>`;
+  }
+
+  // Area + line path
+  const linePts = pts.map((p,i)=>`${x(i).toFixed(1)},${y(p.weight).toFixed(1)}`);
+  const linePath = 'M' + linePts.join(' L');
+  const areaPath = `M${x(0).toFixed(1)},${y(pts[0].weight).toFixed(1)} L` + linePts.join(' L') +
+                   ` L${x(n-1).toFixed(1)},${(padT+innerH).toFixed(1)} L${x(0).toFixed(1)},${(padT+innerH).toFixed(1)} Z`;
+
+  // X labels: first, middle, last (avoid crowding)
+  const labelIdx = n<=3 ? pts.map((_,i)=>i) : [0, Math.floor((n-1)/2), n-1];
+  let xlabels='';
+  labelIdx.forEach(i=>{
+    const dt = new Date(pts[i].date+'T12:00:00');
+    const lbl = isNaN(dt)?'' : dt.toLocaleDateString('en-GB',{day:'2-digit',month:'short'});
+    const anchor = i===0?'start':i===n-1?'end':'middle';
+    xlabels += `<text x="${x(i).toFixed(1)}" y="${H-8}" class="wc-axis" text-anchor="${anchor}">${lbl}</text>`;
+  });
+
+  // Points, colored by source, with hover tooltip via <title>
+  const dots = pts.map((p,i)=>{
+    const c = p.source==='vet' ? '#1d9e75' : '#BA7517';
+    const dt = new Date(p.date+'T12:00:00');
+    const dlbl = isNaN(dt)?p.date:dt.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});
+    const src = p.source==='vet'?'vet visit':'logged';
+    return `<circle cx="${x(i).toFixed(1)}" cy="${y(p.weight).toFixed(1)}" r="4" fill="${c}" stroke="var(--surface)" stroke-width="1.5"><title>${p.weight} ${unit} · ${dlbl} (${src})</title></circle>`;
+  }).join('');
+
+  return `<svg viewBox="0 0 ${W} ${H}" class="wchart" preserveAspectRatio="none" role="img" aria-label="Weight trend chart">
+    ${grid}
+    <path d="${areaPath}" class="wc-area"/>
+    <path d="${linePath}" class="wc-line"/>
+    ${dots}
+    ${xlabels}
+  </svg>`;
+}
+
+// ── PARASITE TRACKER ──────────────────────────────────────────
+function parasites(pet) {
+  let items=[...(pet.parasites||[])].sort((a,b)=>{
+    // overdue (negative days, biggest first), due-soon (0-14 days), current (>14 days), no-due last
+    const ad=daysUntil(a.nextDue), bd=daysUntil(b.nextDue);
+    const rank = d => d===null ? 3 : d<0 ? 0 : d<=14 ? 1 : 2;
+    const ra=rank(ad), rb=rank(bd);
+    if(ra!==rb) return ra-rb;
+    if(ad===null && bd===null) return (b.lastDone||'').localeCompare(a.lastDone||'');
+    return (ad??0)-(bd??0);
+  });
+  const toolbar=secToolbar('ti-shield-half','iw','Parasite treatment tracker','parasite','Add treatment');
+  if(!items.length) return toolbar+emptyState('ti-shield-half','No parasite treatments logged yet','Add treatment','parasite');
+  if(searchQ) items=items.filter(p=>matches(p.name)||matches(p.type)||matches(p.product));
+  if(!items.length) return toolbar+noResults();
+  const cards=items.map(p=>{
+    const st=parasiteStatus(p.nextDue);
+    return `<div class="parasite-card ${st.card}">
+      <div class="parasite-actions">
+        <button class="ra-btn" onclick="openRecordModal('parasite','${p.id}')">${ic('edit')}</button>
+        <button class="ra-btn del" onclick="confirmDeleteRecord('parasite','${p.id}')">${ic('x')}</button>
+      </div>
+      <div class="p-type">${esc(p.type||'Treatment')}</div>
+      <div class="p-name">${esc(p.name)}</div>
+      ${p.product?`<div class="p-detail"><span>Product</span><span>${esc(p.product)}</span></div>`:''}
+      ${p.lastDone?`<div class="p-detail"><span>Last done</span><span>${fmt(p.lastDone)}</span></div>`:''}
+      ${p.frequency?`<div class="p-detail"><span>Frequency</span><span>${esc(p.frequency)}</span></div>`:''}
+      <div class="p-status"><span class="pill ${st.cls}">${st.label}</span></div>
+    </div>`;
+  }).join('');
+  return toolbar+`<div class="parasite-grid">${cards}</div>`;
+}
+
+// ── NOTES ─────────────────────────────────────────────────────
+function notes(pet) {
+  let items=[...(pet.healthNotes||[])].sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  const toolbar=secToolbar('ti-clipboard-text','ic','Behavioral & health notes','healthNote','Add note');
+  if(!items.length) return toolbar+emptyState('ti-clipboard-text','No health notes yet','Add note','healthNote');
+  if(searchQ) items=items.filter(n=>matches(n.text)||matches(n.type));
+  if(!items.length) return toolbar+noResults();
+  return toolbar+`<div class="notes-list">${items.map(n=>`
+    <div class="note-item ${n.type==='good'?'note-good':n.type==='concern'?'note-concern':''}">
+      <div class="note-actions">
+        <button class="ra-btn" onclick="openRecordModal('healthNote','${n.id}')">${ic('edit')}</button>
+        <button class="ra-btn del" onclick="confirmDeleteRecord('healthNote','${n.id}')">${ic('x')}</button>
+      </div>
+      <div class="note-date">${fmt(n.date)}</div>
+      <div class="note-text">${esc(n.text)}</div>
+    </div>`).join('')}</div>`;
+}
+
+// ── CONTACTS ──────────────────────────────────────────────────
+function contacts(pet) {
+  let items=pet.contacts||[];
+  const toolbar=secToolbar('ti-phone','ip','Emergency contacts','contact','Add contact');
+  if(!items.length) return toolbar+emptyState('ti-phone','No emergency contacts added yet','Add contact','contact');
+  if(searchQ) items=items.filter(c=>matches(c.name)||matches(c.type)||matches(c.phone));
+  if(!items.length) return toolbar+noResults();
+  return toolbar+`<div class="contacts-grid">${items.map(c=>`
+    <div class="contact-card">
+      <div class="contact-actions">
+        <button class="ra-btn" onclick="openRecordModal('contact','${c.id}')">${ic('edit')}</button>
+        <button class="ra-btn del" onclick="confirmDeleteRecord('contact','${c.id}')">${ic('x')}</button>
+      </div>
+      <div class="c-type">${esc(c.type||'Contact')}</div>
+      <div class="c-name">${esc(c.name)}</div>
+      ${c.phone?`<div class="c-phone">${esc(c.phone)}</div>`:''}
+      ${c.hours?`<div class="c-note">${esc(c.hours)}</div>`:''}
+      ${c.notes?`<div class="c-note">${esc(c.notes)}</div>`:''}
+    </div>`).join('')}</div>`;
+}
+
+// ── PRINT ─────────────────────────────────────────────────────
+function printView() {
+  const pet=getActivePet(); if(!pet) return;
+  const esc2 = s => String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const today_ = today();
+  const dm = d => { if(!d) return ''; const t=new Date(d+'T12:00:00'); return isNaN(t)?d:t.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}); };
+
+  // ---- Profile / care ----
+  const weights = gatherWeights(pet);
+  const curW = weights.length ? `${weights[weights.length-1].weight} ${weights[weights.length-1].unit||'kg'}` : '—';
+  const profileRows = [
+    ['Species', [pet.species, pet.breed].filter(Boolean).join(' · ') || '—'],
+    ['Sex', pet.sex || '—'],
+    ['Age', pet.birthdate ? `${petAge(pet.birthdate)} (b. ${dm(pet.birthdate)})` : '—'],
+    ['Microchip', pet.microchip || '—'],
+  ];
+  const careRows = [
+    ['Primary vet', pet.vet || '—'],
+    ['Current weight', curW],
+    ['Insurance', pet.insurance || '—'],
+  ];
+
+  // ---- Stats ----
+  const totalRecords = ['vaccinations','medications','vetVisits','weightLogs','parasites','healthNotes'].reduce((s,k)=>s+(pet[k]?.length||0),0);
+  const activeMeds = (pet.medications||[]).filter(m=>m.status==='active').length;
+  let wTrend = '—';
+  if(weights.length>1) {
+    const last=weights[weights.length-1], first=weights.find(p=>{const c=new Date(last.date+'T12:00:00');c.setDate(c.getDate()-90);return new Date(p.date+'T12:00:00')>=c;})||weights[0];
+    wTrend = `${first.weight} → ${last.weight}`;
+  } else if(weights.length===1) wTrend = `${weights[0].weight} ${weights[0].unit||'kg'}`;
+  const pastVisits = (pet.vetVisits||[]).filter(v=>v.date&&v.date<=today_).sort((a,b)=>b.date.localeCompare(a.date));
+  const lastVisit = pastVisits[0] ? dm(pastVisits[0].date).replace(/ \d{4}$/,'') : '—';
+
+  // ---- Upcoming & due ----
+  const up=[];
+  (pet.vaccinations||[]).forEach(v=>{ if(v.nextDue) up.push({d:v.nextDue,t:`${v.name||'Vaccine'}`,sub:'vaccine'}); });
+  (pet.parasites||[]).forEach(p=>{ if(p.nextDue) up.push({d:p.nextDue,t:`${p.name||'Treatment'}`,sub:p.frequency||'parasite treatment'}); });
+  (pet.vetVisits||[]).forEach(v=>{ if(v.date&&v.date>=today_) up.push({d:v.date,t:`${(v.type||'Visit')} — ${v.vet||'vet'}`,sub:'appointment'}); });
+  up.sort((a,b)=>(a.d||'').localeCompare(b.d||''));
+  const upRows = up.map(u=>{
+    const days=daysUntil(u.d);
+    let cls='', txt=dm(u.d);
+    if(days!==null){ if(days<0){cls='over';txt=`${Math.abs(days)}d overdue`;} else if(days<=14){cls='warn';txt=`due ${dm(u.d)}`;} }
+    return `<div class="pl"><span>${esc2(u.t)} <span class="sub">· ${esc2(u.sub)}</span></span><span class="r ${cls}">${esc2(txt)}</span></div>`;
+  }).join('') || '<div class="pl"><span class="sub">Nothing scheduled</span></div>';
+
+  // ---- Medications: FULL history, active first ----
+  const order={active:0,prn:1,completed:2,discontinued:3};
+  const meds=[...(pet.medications||[])].sort((a,b)=>{const s=(order[a.status]??4)-(order[b.status]??4);return s!==0?s:(b.startDate||'').localeCompare(a.startDate||'');});
+  const medRows = meds.map(m=>{
+    const range=[m.startDate?dm(m.startDate):'',m.endDate?dm(m.endDate):''].filter(Boolean).join(' → ');
+    const detail=[m.dosage,m.frequency,m.purpose].filter(Boolean).join(' · ');
+    return `<div class="pl"><span><b>${esc2(m.name||'Medication')}</b>${detail?` — ${esc2(detail)}`:''} <span class="tag">${esc2(m.status||'active')}</span></span><span class="r">${esc2(range)}</span></div>`;
+  }).join('') || '<div class="pl"><span class="sub">No medications recorded</span></div>';
+
+  // ---- Vet visits: FULL notes, no truncation ----
+  const visits=[...(pet.vetVisits||[])].sort((a,b)=>{
+    if(!a.date&&!b.date)return 0; if(!a.date)return 1; if(!b.date)return -1;
+    const au=a.date>=today_,bu=b.date>=today_;
+    if(au&&!bu)return -1; if(!au&&bu)return 1; if(au&&bu)return a.date.localeCompare(b.date);
+    return b.date.localeCompare(a.date);
+  });
+  const visitEntries = visits.map(v=>{
+    const meta=[v.vet,v.clinic&&v.clinic!==v.vet?v.clinic:'',v.weight?`${v.weight} ${v.weightUnit||'kg'}`:''].filter(Boolean).join(' · ');
+    const emerg=(v.type||'').toLowerCase()==='emergency'?' emerg':'';
+    return `<div class="v-entry">
+      <div class="v-top"><span class="v-date">${esc2(dm(v.date))}</span>${v.type?`<span class="v-type${emerg}">${esc2(v.type)}</span>`:''}${meta?`<span class="v-meta">${esc2(meta)}</span>`:''}</div>
+      ${v.summary?`<div class="v-note">${esc2(v.summary)}</div>`:''}
+      ${v.followUp?`<div class="v-fu">Follow-up: ${esc2(v.followUp)}</div>`:''}
+    </div>`;
+  }).join('') || '<div class="pl"><span class="sub">No vet visits recorded</span></div>';
+
+  const win=window.open('','_blank');
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${esc2(pet.name)} — Health Record</title>
+  <style>
+    @page { margin: 16mm; }
+    * { box-sizing: border-box; }
+    body { font-family: 'Plus Jakarta Sans','Segoe UI',system-ui,sans-serif; color:#1a1a1a; font-size:12px; line-height:1.5; margin:0; }
+    .head { display:flex; align-items:baseline; justify-content:space-between; border-bottom:2px solid #1a1a1a; padding-bottom:8px; margin-bottom:14px; }
+    .title { font-size:20px; font-weight:700; } .title small { font-weight:500; color:#666; font-size:13px; margin-left:6px; }
+    .date { font-size:11px; color:#888; }
+    .row { display:flex; gap:28px; margin-bottom:16px; } .col { flex:1; }
+    .sec { font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:#999; margin-bottom:6px; }
+    .kv { font-size:12px; line-height:1.7; } .kv b { font-weight:600; display:inline-block; min-width:90px; }
+    .stats { display:flex; border:1px solid #ddd; border-radius:6px; overflow:hidden; margin-bottom:16px; }
+    .stat { flex:1; padding:9px 11px; border-right:1px solid #eee; } .stat:last-child{border-right:none;}
+    .stat-v { font-size:16px; font-weight:700; } .stat-l { font-size:9.5px; color:#888; margin-top:2px; }
+    .block { margin-bottom:16px; }
+    .pl { display:flex; justify-content:space-between; font-size:12px; padding:5px 0; border-bottom:.5px solid #eee; gap:14px; }
+    .pl:last-child { border-bottom:none; } .pl .sub { color:#999; } .pl .r { color:#666; white-space:nowrap; text-align:right; }
+    .pl .r.warn { color:#b8860b; font-weight:600; } .pl .r.over { color:#c0392b; font-weight:600; }
+    .tag { font-size:9px; font-weight:600; text-transform:uppercase; letter-spacing:.03em; border:1px solid #ccc; border-radius:10px; padding:0 6px; color:#666; margin-left:4px; }
+    .v-entry { padding:10px 0; border-bottom:.5px solid #eee; break-inside:avoid; page-break-inside:avoid; }
+    .v-entry:last-child { border-bottom:none; }
+    .v-top { display:flex; align-items:baseline; gap:8px; margin-bottom:3px; }
+    .v-date { font-size:13px; font-weight:700; } .v-meta { font-size:11px; color:#777; margin-left:auto; }
+    .v-type { font-size:9px; font-weight:600; text-transform:uppercase; letter-spacing:.04em; padding:1px 7px; border:1px solid #ccc; border-radius:10px; color:#555; }
+    .v-type.emerg { border-color:#e0a0a0; color:#c0392b; }
+    .v-note { font-size:11.5px; color:#333; line-height:1.55; margin-top:3px; }
+    .v-fu { font-size:11px; color:#555; margin-top:5px; padding-left:9px; border-left:2px solid #ccc; }
+    .foot { margin-top:18px; padding-top:10px; border-top:.5px solid #ddd; font-size:10px; color:#aaa; text-align:center; }
+    h2.bsec { font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:#999; margin:0 0 8px; }
+  </style></head><body>
+    <div class="head"><div class="title">${esc2(pet.name)} <small>health record</small></div><div class="date">${new Date().toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})}</div></div>
+    <div class="row">
+      <div class="col"><div class="sec">Profile</div><div class="kv">${profileRows.map(r=>`<div><b>${r[0]}</b> ${esc2(r[1])}</div>`).join('')}</div></div>
+      <div class="col"><div class="sec">Care</div><div class="kv">${careRows.map(r=>`<div><b>${r[0]}</b> ${esc2(r[1])}</div>`).join('')}</div></div>
+    </div>
+    <div class="stats">
+      <div class="stat"><div class="stat-v">${totalRecords}</div><div class="stat-l">Total records</div></div>
+      <div class="stat"><div class="stat-v">${activeMeds}</div><div class="stat-l">Active meds</div></div>
+      <div class="stat"><div class="stat-v">${esc2(wTrend)}</div><div class="stat-l">Weight (90d)</div></div>
+      <div class="stat"><div class="stat-v">${esc2(lastVisit)}</div><div class="stat-l">Last visit</div></div>
+    </div>
+    <div class="block"><h2 class="bsec">Upcoming &amp; due</h2>${upRows}</div>
+    <div class="block"><h2 class="bsec">Medication history</h2>${medRows}</div>
+    <div class="block"><h2 class="bsec">Vet visits — full history</h2>${visitEntries}</div>
+    <div class="foot">Generated from Pet Health Log · lopstudio.github.io/pet-records</div>
+  </body></html>`);
+  win.document.close();
+  setTimeout(()=>win.print(), 250);
+}
+
+// ── MODAL ─────────────────────────────────────────────────────
+function openModal(title,body,footer) {
+  document.getElementById('modalTitle').textContent=title;
+  document.getElementById('modalBody').innerHTML=body;
+  document.getElementById('modalFoot').innerHTML=footer;
+  document.getElementById('modalOverlay').classList.add('open');
+}
+function closeModal() {
+  const newIds = (modalCtx && modalCtx._newIds) ? [...modalCtx._newIds] : [];
+  document.getElementById('modalOverlay').classList.remove('open');
+  modalCtx={};
+  // Async cleanup of any files that were uploaded but not saved
+  for(const id of newIds) { fileStore_delete(id).catch(()=>{}); }
+}
+function handleOverlayClick(e) { if(e.target===document.getElementById('modalOverlay')) closeModal(); }
+
+// ── PET FORM ──────────────────────────────────────────────────
+function openPetModal(petId) {
+  const pet=petId?state.pets.find(p=>p.id===petId):null;
+  modalCtx={type:'pet',petId:petId||null};
+  const se=pet?.emoji||EMOJIS[0], sb=pet?.bgColor||BG_COLORS[0];
+  openModal(pet?'Edit pet':'Add new pet',`
+    <input type="hidden" id="f_emoji" value="${se}">
+    <input type="hidden" id="f_bgColor" value="${sb}">
+    <input type="hidden" id="f_photo" value="">
+    <input type="file" id="f_photoInput" accept="image/*" style="display:none" onchange="handlePhotoUpload(this)">
+    <div class="form-grid f2">
+      <div class="fg s2"><label>Pet photo <span class="hint" style="font-weight:400">(optional)</span></label>
+        <div class="photo-upload-area" onclick="document.getElementById('f_photoInput').click()" id="photoUploadArea">
+          ${pet?.photo?`<img class="photo-preview" src="${pet.photo}"><div style="font-size:12px;color:var(--text-2)">Click to change</div><button class="photo-remove-btn" onclick="removePhoto(event)">${ic('x')} Remove</button>`
+            :`<div style="font-size:2rem;margin-bottom:6px">📷</div><div style="font-size:13px;font-weight:500">Click to upload photo</div><div style="font-size:11px;color:var(--text-3);margin-top:3px">Auto-resized to 400×400</div>`}
+        </div></div>
+      <div class="fg s2"><label>Emoji avatar</label>
+        <div class="emoji-picker">${EMOJIS.map(e=>`<span class="emoji-opt ${e===se?'sel':''}" onclick="pickEmoji(this,'${e}')">${e}</span>`).join('')}</div></div>
+      <div class="fg s2"><label>Background color</label>
+        <div class="color-picker">${BG_COLORS.map(c=>`<span class="color-opt ${c===sb?'sel':''}" onclick="pickColor(this,'${c}')" style="background:${c}"></span>`).join('')}</div></div>
+      <div class="fg"><label>Name <span class="req">*</span></label><input type="text" id="f_name" value="${esc(pet?.name||'')}" placeholder="e.g. Bambang"></div>
+      <div class="fg"><label>Species</label><select id="f_species">${SPECIES.map(s=>`<option ${pet?.species===s?'selected':''}>${s}</option>`).join('')}</select></div>
+      <div class="fg"><label>Breed</label><input type="text" id="f_breed" value="${esc(pet?.breed||'')}" placeholder="e.g. Domestic Shorthair"></div>
+      <div class="fg"><label>Birthdate</label><input type="date" id="f_birthdate" value="${pet?.birthdate||''}"></div>
+      <div class="fg"><label>Sex</label><input type="text" id="f_sex" value="${esc(pet?.sex||'')}" placeholder="e.g. Male (intact)"></div>
+      <div class="fg"><label>Microchip ID</label><input type="text" id="f_microchip" value="${esc(pet?.microchip||'')}" placeholder="None"></div>
+      <div class="fg"><label>Primary vet</label><input type="text" id="f_vet" value="${esc(pet?.vet||'')}" placeholder="Dr. Name"></div>
+      <div class="fg"><label>Insurance</label><input type="text" id="f_insurance" value="${esc(pet?.insurance||'')}" placeholder="Policy #"></div>
+      <div class="fg s2"><label>Ongoing conditions <span class="hint">(one per line)</span></label>
+        <textarea id="f_conditions" placeholder="e.g. Seasonal allergies&#10;Arthritis">${(pet?.conditions||[]).join('\n')}</textarea></div>
+    </div>`,
+    `<button class="btn" onclick="closeModal()">Cancel</button>
+     <button class="btn btn-primary" onclick="savePetForm()">${pet?'Save changes':'Add pet'}</button>`);
+}
+function pickEmoji(el,v){document.getElementById('f_emoji').value=v;el.closest('.emoji-picker').querySelectorAll('.emoji-opt').forEach(e=>e.classList.remove('sel'));el.classList.add('sel');}
+function pickColor(el,v){document.getElementById('f_bgColor').value=v;el.closest('.color-picker').querySelectorAll('.color-opt').forEach(e=>e.classList.remove('sel'));el.classList.add('sel');}
+function handlePhotoUpload(input){
+  const file=input.files[0]; if(!file) return;
+  if(file.size>10*1024*1024){alert('Photo file too large (max 10 MB before resize)');input.value='';return;}
+  if(!/^image\//.test(file.type)){alert('Please choose an image file');input.value='';return;}
+  const fr=new FileReader();
+  fr.onload=e=>{
+    const img=new Image();
+    img.onload=()=>{
+      // Square-crop center, then downscale to max 400px — keeps avatars small in localStorage
+      const MAX=400;
+      const side=Math.min(img.width,img.height);
+      const sx=(img.width-side)/2, sy=(img.height-side)/2;
+      const out=Math.min(MAX,side);
+      const canvas=document.createElement('canvas');
+      canvas.width=out; canvas.height=out;
+      const ctx=canvas.getContext('2d');
+      ctx.drawImage(img, sx,sy,side,side, 0,0,out,out);
+      // JPEG @ 0.85 quality — typically 20-60 KB for 400x400
+      const d=canvas.toDataURL('image/jpeg',0.85);
+      document.getElementById('f_photo').value=d;
+      document.getElementById('photoUploadArea').innerHTML=`<img class="photo-preview" src="${d}"><div style="font-size:12px;color:var(--text-2)">Click to change</div><button class="photo-remove-btn" onclick="removePhoto(event)">${ic('x')} Remove</button>`;
+    };
+    img.onerror=()=>{alert('Could not read this image. Try a different file.');};
+    img.src=e.target.result;
+  };
+  fr.onerror=()=>{alert('Could not read the file.');};
+  fr.readAsDataURL(file);
+}
+function removePhoto(e){
+  e.stopPropagation();
+  document.getElementById('f_photo').value='__remove__';
+  document.getElementById('photoUploadArea').innerHTML=`<div style="font-size:2rem;margin-bottom:6px">📷</div><div style="font-size:13px;font-weight:500">Click to upload photo</div><div style="font-size:11px;color:var(--text-3);margin-top:3px">Auto-resized to 400×400</div>`;
+}
+function savePetForm(){
+  const name=document.getElementById('f_name').value.trim();
+  if(!name){alert('Name is required');return;}
+  const photoVal=document.getElementById('f_photo').value;
+  const existingPet=modalCtx.petId?state.pets.find(p=>p.id===modalCtx.petId):null;
+  const photo=photoVal==='__remove__'?'':photoVal||existingPet?.photo||'';
+  const data={
+    name,emoji:document.getElementById('f_emoji').value,bgColor:document.getElementById('f_bgColor').value,photo,
+    species:document.getElementById('f_species').value,breed:document.getElementById('f_breed').value.trim(),
+    birthdate:document.getElementById('f_birthdate').value,sex:document.getElementById('f_sex').value.trim(),
+    microchip:document.getElementById('f_microchip').value.trim(),vet:document.getElementById('f_vet').value.trim(),
+    insurance:document.getElementById('f_insurance').value.trim(),
+    conditions:document.getElementById('f_conditions').value.split('\n').map(s=>s.trim()).filter(Boolean)
+  };
+  if(modalCtx.petId){Object.assign(state.pets.find(p=>p.id===modalCtx.petId),data);}
+  else{const pet={id:genId(),vaccinations:[],medications:[],vetVisits:[],weightLogs:[],parasites:[],healthNotes:[],contacts:[],...data};state.pets.push(pet);state.activePetId=pet.id;}
+  saveState();closeModal();renderAll();
+}
+
+// ── RECORD FORMS ──────────────────────────────────────────────
+const RECORD_FORMS={
+  vaccination:{title:'Vaccination',fields:[
+    {id:'name',label:'Vaccine name',type:'text',req:true,ph:'e.g. FVRCP, Rabies',full:true},
+    {id:'description',label:'Description',type:'text',ph:'e.g. Core — 3-year booster',full:true},
+    {id:'dateGiven',label:'Date given',type:'date',req:true},
+    {id:'nextDue',label:'Next due date',type:'date'},
+    {id:'vet',label:'Administered by',type:'text',ph:'Dr. Name / Clinic',full:true},
+    {id:'notes',label:'Notes',type:'textarea',full:true},
+  ]},
+  medication:{title:'Medication',fields:[
+    {id:'name',label:'Medication name',type:'text',req:true,ph:'e.g. Frontline Plus'},
+    {id:'dosage',label:'Dosage',type:'text',ph:'e.g. 0.5 mL'},
+    {id:'frequency',label:'Frequency',type:'text',ph:'e.g. Monthly, Daily'},
+    {id:'status',label:'Status',type:'select',opts:['active','prn','completed','discontinued']},
+    {id:'startDate',label:'Start date',type:'date'},
+    {id:'endDate',label:'End date',type:'date'},
+    {id:'purpose',label:'Purpose / notes',type:'textarea',full:true},
+  ]},
+  vetVisit:{title:'Vet visit',fields:[
+    {id:'date',label:'Date',type:'date',req:true},
+    {id:'type',label:'Visit type',type:'select',opts:['annual','checkup','sick','booster','dental','emergency','other']},
+    {id:'vet',label:'Vet name',type:'text',ph:'Dr. Name'},
+    {id:'clinic',label:'Clinic',type:'text',ph:'Clinic name'},
+    {id:'weight',label:'Weight at visit',type:'number',ph:'e.g. 4.2'},
+    {id:'weightUnit',label:'Unit',type:'select',opts:['kg','lbs','g']},
+    {id:'summary',label:'Visit summary',type:'textarea',full:true,ph:'What was discussed or diagnosed'},
+    {id:'followUp',label:'Follow-up',type:'text',full:true,ph:'e.g. Return if no improvement in 7 days'},
+  ]},
+  weightLog:{title:'Weight log',fields:[
+    {id:'date',label:'Date',type:'date',req:true},
+    {id:'weight',label:'Weight',type:'number',req:true,ph:'e.g. 4.2'},
+    {id:'unit',label:'Unit',type:'select',opts:['kg','lbs','g']},
+    {id:'notes',label:'Notes',type:'text',full:true,ph:'e.g. After illness'},
+  ]},
+  parasite:{title:'Parasite treatment',fields:[
+    {id:'name',label:'Treatment name',type:'text',req:true,ph:'e.g. Flea & tick prevention'},
+    {id:'type',label:'Treatment type',type:'select',opts:PARASITE_TYPES},
+    {id:'product',label:'Product / brand',type:'text',ph:'e.g. Frontline, Revolution, Milbemax',full:true},
+    {id:'lastDone',label:'Last done date',type:'date'},
+    {id:'frequency',label:'Frequency',type:'select',opts:PARASITE_FREQ},
+    {id:'nextDue',label:'Next due date',type:'date'},
+    {id:'notes',label:'Notes',type:'textarea',full:true,ph:'e.g. Applied topically between shoulder blades'},
+  ]},
+  healthNote:{title:'Health note',fields:[
+    {id:'date',label:'Date',type:'date',req:true},
+    {id:'type',label:'Note type',type:'select',opts:['normal','good','concern']},
+    {id:'text',label:'Note',type:'textarea',req:true,full:true,ph:'Describe what you observed…'},
+  ]},
+  contact:{title:'Emergency contact',fields:[
+    {id:'type',label:'Contact type',type:'text',req:true,ph:'e.g. Primary vet, Emergency clinic'},
+    {id:'name',label:'Name',type:'text',req:true,ph:'Dr. Name / Clinic name'},
+    {id:'phone',label:'Phone',type:'tel',ph:'+62 812 345 6789'},
+    {id:'hours',label:'Hours',type:'text',ph:'e.g. Mon–Sat 8am–6pm'},
+    {id:'notes',label:'Notes',type:'text',full:true,ph:'e.g. 2.5 km away'},
+  ]}
+};
+const SEC_MAP={vaccination:'vaccinations',medication:'medications',vetVisit:'vetVisits',weightLog:'weightLogs',parasite:'parasites',healthNote:'healthNotes',contact:'contacts'};
+function secArr(pet,section){return pet[SEC_MAP[section]];}
+
+// Sections that support file attachments
+const ATTACH_SECTIONS = new Set(['vetVisit','vaccination','healthNote']);
+
+function buildForm(fields,data){
+  const fields_html = `<div class="form-grid f2">${fields.map(f=>{
+    const v=data[f.id]||'';
+    const full=f.full?'s2':'';
+    let inp=f.type==='select'
+      ?`<select id="rf_${f.id}">${(f.opts||[]).map(o=>`<option value="${o}" ${v===o?'selected':''}>${o.charAt(0).toUpperCase()+o.slice(1)}</option>`).join('')}</select>`
+      :f.type==='textarea'
+        ?`<textarea id="rf_${f.id}" placeholder="${f.ph||''}">${esc(v)}</textarea>`
+        :`<input type="${f.type}" id="rf_${f.id}" value="${esc(v)}" placeholder="${f.ph||''}">`;
+    return `<div class="fg ${full}"><label>${f.label}${f.req?` <span class="req">*</span>`:''}</label>${inp}</div>`;
+  }).join('')}</div>`;
+  const attach = (modalCtx.section && ATTACH_SECTIONS.has(modalCtx.section)) ? `
+    <div class="attach-section">
+      <div class="attach-label-row">
+        <label style="margin:0">Attachments <span class="hint" style="font-weight:400">(images, PDF · max 8 MB each)</span></label>
+        <button type="button" class="attach-add-btn" onclick="document.getElementById('attachInput').click()">+ Add file</button>
+      </div>
+      <div id="attachList"></div>
+    </div>` : '';
+  return fields_html + attach;
+}
+
+async function renderAttachmentList() {
+  const el = document.getElementById('attachList');
+  if(!el) return;
+  const atts = modalCtx.attachments || [];
+  if(!atts.length) { el.innerHTML = '<div style="font-size:12px;color:var(--text-3);padding:4px 0">No files attached yet.</div>'; return; }
+  el.innerHTML = '<div class="attach-loading">Loading…</div>';
+  const cards = await Promise.all(atts.map(async a => {
+    let thumb;
+    if(isImage(a.type)) {
+      const url = await getThumb(a.id);
+      thumb = url ? `<img src="${url}" alt="">` : `<div class="file-ico">${ic('photo')}</div>`;
+    } else if(isPdf(a.type)) thumb = `<div class="pdf-ico">${ic('file-text')}</div>`;
+    else thumb = `<div class="file-ico">${ic('paperclip')}</div>`;
+    const safeName = esc(a.name);
+    return `<div class="attach-card" onclick="openAttachment('${a.id}')">
+      <div class="attach-thumb">${thumb}</div>
+      <div class="attach-name" title="${safeName}">${safeName}</div>
+      <div class="attach-size">${fmtSize(a.size)}</div>
+      <button class="attach-del" onclick="event.stopPropagation();removeAttachment('${a.id}')" title="Remove">${ic('x')}</button>
+    </div>`;
+  }));
+  el.innerHTML = `<div class="attach-grid">${cards.join('')}</div>`;
+}
+
+async function handleAttachmentUpload(input) {
+  const file = input.files[0];
+  if(!file) return;
+  if(file.size > MAX_FILE_BYTES) { alert(`File too large. Max ${fmtSize(MAX_FILE_BYTES)} per file.`); input.value=''; return; }
+  if(!modalCtx.attachments) modalCtx.attachments = [];
+  if(!modalCtx._newIds) modalCtx._newIds = [];
+  try {
+    const meta = await fileStore_put(file);
+    modalCtx.attachments.push(meta);
+    modalCtx._newIds.push(meta.id);
+    renderAttachmentList();
+  } catch(e) {
+    console.error(e);
+    alert('Could not save the file: ' + (e?.message || 'unknown error'));
+  }
+  input.value = '';
+}
+
+async function removeAttachment(fileId) {
+  if(!modalCtx.attachments) return;
+  const idx = modalCtx.attachments.findIndex(a => a.id === fileId);
+  if(idx < 0) return;
+  modalCtx.attachments.splice(idx, 1);
+  const newIdx = (modalCtx._newIds||[]).indexOf(fileId);
+  if(newIdx >= 0) {
+    modalCtx._newIds.splice(newIdx, 1);
+    try { await fileStore_delete(fileId); } catch(e) {}
+  } else {
+    if(!modalCtx._toRemove) modalCtx._toRemove = [];
+    modalCtx._toRemove.push(fileId);
+  }
+  renderAttachmentList();
+}
+function openAddModal(section){
+  const cfg=RECORD_FORMS[section]; if(!cfg) return;
+  modalCtx={type:'record',section,recordId:null,attachments:[],_newIds:[],_toRemove:[]};
+  const def={date:today(),unit:'kg',weightUnit:'kg',status:'active',type:section==='vetVisit'?'annual':section==='parasite'?'Flea & tick':'normal',frequency:'Monthly'};
+  openModal('Add '+cfg.title.toLowerCase(),buildForm(cfg.fields,def),
+    `<button class="btn" onclick="closeModal()">Cancel</button>
+     <button class="btn btn-primary" onclick="saveRecordForm('${section}')">Add entry</button>`);
+  if(ATTACH_SECTIONS.has(section)) renderAttachmentList();
+}
+function openRecordModal(section,recordId){
+  const pet=getActivePet(); if(!pet) return;
+  const cfg=RECORD_FORMS[section]; if(!cfg) return;
+  const record=secArr(pet,section).find(r=>r.id===recordId); if(!record) return;
+  modalCtx={type:'record',section,recordId,attachments:[...(record.attachments||[])],_newIds:[],_toRemove:[]};
+  openModal('Edit '+cfg.title.toLowerCase(),buildForm(cfg.fields,record),
+    `<button class="btn" onclick="closeModal()">Cancel</button>
+     <button class="btn btn-primary" onclick="saveRecordForm('${section}')">Save changes</button>`);
+  if(ATTACH_SECTIONS.has(section)) renderAttachmentList();
+}
+function saveRecordForm(section){
+  const cfg=RECORD_FORMS[section]; if(!cfg) return;
+  const data={};
+  for(const f of cfg.fields){
+    const el=document.getElementById('rf_'+f.id); if(!el) continue;
+    data[f.id]=el.value.trim();
+    if(f.req&&!data[f.id]){alert(f.label+' is required');return;}
+  }
+  const pet=getActivePet(); if(!pet) return;
+  const arr=secArr(pet,section);
+  // attachments handling
+  if(ATTACH_SECTIONS.has(section)) data.attachments = modalCtx.attachments || [];
+  // commit removals (pre-existing files that were removed during this session)
+  for(const id of (modalCtx._toRemove||[])) { fileStore_delete(id).catch(()=>{}); }
+  // mark new files as saved so closeModal doesn't clean them up
+  modalCtx._newIds = [];
+  if(modalCtx.recordId){
+    const existing = arr.find(r=>r.id===modalCtx.recordId);
+    Object.assign(existing, data);
+  } else { arr.push({id:genId(),...data}); }
+  saveState();closeModal();renderAll();
+}
+
+// ── DELETE ────────────────────────────────────────────────────
+function confirmDeleteRecord(section,recordId){
+  modalCtx={type:'confirmRecord',section,recordId};
+  openModal('Delete entry',`<div class="confirm-icon del">${ic('trash')}</div><div class="confirm-msg">Delete this entry? This cannot be undone.</div>`,
+    `<button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-danger" onclick="doDeleteRecord()">Delete</button>`);
+}
+function doDeleteRecord(){
+  const pet=getActivePet(); if(!pet) return;
+  const arr=secArr(pet,modalCtx.section);
+  const idx=arr.findIndex(r=>r.id===modalCtx.recordId);
+  if(idx>-1) {
+    // Clean up any attachments tied to this record
+    const atts = arr[idx].attachments || [];
+    for(const a of atts) { fileStore_delete(a.id).catch(()=>{}); }
+    arr.splice(idx,1);
+  }
+  saveState();closeModal();renderAll();
+}
+function confirmDeletePet(petId){
+  const pet=state.pets.find(p=>p.id===petId); if(!pet) return;
+  modalCtx={type:'confirmPet',petId};
+  openModal('Remove pet',`<div class="confirm-icon warn">${ic('alert-triangle')}</div><div class="confirm-msg">Remove <strong>${esc(pet.name)}</strong> and all their records? This cannot be undone.</div>`,
+    `<button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-danger" onclick="doDeletePet()">Remove</button>`);
+}
+function doDeletePet(){
+  const pet = state.pets.find(p=>p.id===modalCtx.petId);
+  if(pet) {
+    // Clean up any attachments owned by this pet
+    ['vetVisits','vaccinations','healthNotes'].forEach(key => {
+      (pet[key]||[]).forEach(r => (r.attachments||[]).forEach(a => fileStore_delete(a.id).catch(()=>{})));
+    });
+  }
+  state.pets=state.pets.filter(p=>p.id!==modalCtx.petId);
+  if(state.activePetId===modalCtx.petId) state.activePetId=state.pets[0]?.id||null;
+  saveState();closeModal();renderAll();
+}
+
+// ── EXPORT / IMPORT ───────────────────────────────────────────
+function blobToBase64(blob) {
+  return new Promise((resolve, reject) => {
+    const fr = new FileReader();
+    fr.onload = () => resolve(fr.result.split(',')[1]);  // strip data URL prefix
+    fr.onerror = () => reject(fr.error);
+    fr.readAsDataURL(blob);
+  });
+}
+function base64ToBlob(b64, type) {
+  const bin = atob(b64);
+  const arr = new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++) arr[i] = bin.charCodeAt(i);
+  return new Blob([arr], { type });
+}
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(url), 1000);
+}
+
+function exportData(includeFiles){
+  if(!includeFiles) {
+    const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});
+    downloadBlob(blob, `pet-health-backup-${today()}.json`);
+    localStorage.setItem('petLog_lastExport',Date.now().toString());
+    closeExportMenu(); renderAll();
+    return;
+  }
+  // Full backup: include files inlined as base64
+  (async () => {
+    try {
+      const files = await fileStore_all();
+      const totalSize = files.reduce((s,f)=>s+(f.size||0),0);
+      if(totalSize > 50*1024*1024) {
+        if(!confirm(`Full backup is ~${fmtSize(totalSize)}. This may take a moment and produce a large file. Continue?`)) { closeExportMenu(); return; }
+      }
+      const _files = {};
+      for(const f of files) {
+        _files[f.id] = { name: f.name, type: f.type, size: f.size, data: await blobToBase64(f.blob) };
+      }
+      const payload = { ...state, _files };
+      const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
+      downloadBlob(blob, `pet-health-full-backup-${today()}.json`);
+      localStorage.setItem('petLog_lastExport', Date.now().toString());
+      closeExportMenu(); renderAll();
+    } catch(e) {
+      console.error(e);
+      alert('Could not create full backup: ' + (e?.message || ''));
+      closeExportMenu();
+    }
+  })();
+}
+
+function toggleExportMenu(ev) {
+  ev?.stopPropagation();
+  refreshAccountMenu();
+  document.getElementById('exportMenu').classList.toggle('open');
+}
+function closeExportMenu() { document.getElementById('exportMenu')?.classList.remove('open'); }
+
+function importData(input){
+  const file=input.files[0]; if(!file) return;
+  const fr=new FileReader();
+  fr.onload=async e=>{
+    try{
+      const imp=JSON.parse(e.target.result);
+      if(!imp.pets) throw new Error('Invalid backup');
+      const hasFiles = imp._files && Object.keys(imp._files).length>0;
+      const msg = `Replace current data with backup (${imp.pets.length} pet${imp.pets.length!==1?'s':''}${hasFiles?', plus '+Object.keys(imp._files).length+' attached file'+(Object.keys(imp._files).length!==1?'s':''):''})?`;
+      if(!confirm(msg)){input.value='';return;}
+      // Restore files first
+      if(hasFiles) {
+        for(const [id, f] of Object.entries(imp._files)) {
+          const blob = base64ToBlob(f.data, f.type);
+          const db = await openDB();
+          await new Promise((res,rej)=>{
+            const tx = db.transaction(STORE,'readwrite');
+            tx.objectStore(STORE).put({ id, name: f.name, type: f.type, size: f.size, addedAt: Date.now(), blob });
+            tx.oncomplete = res; tx.onerror = ()=>rej(tx.error);
+          });
+        }
+        delete imp._files;
+      }
+      state=imp;
+      state.pets.forEach(p=>{ if(!p.parasites) p.parasites=[]; });
+      if(!state.activePetId&&state.pets.length) state.activePetId=state.pets[0].id;
+      _thumbCache.clear();
+      saveState();renderAll();alert('Backup restored!');
+    }catch(err){ console.error(err); alert('Invalid backup file: '+(err?.message||'')); }
+    input.value='';
+  };
+  fr.readAsText(file);
+}
+
+// ── NAV ───────────────────────────────────────────────────────
+function selectPet(id){state.activePetId=id;activeTab='all';searchQ='';saveState();renderAll();}
+function switchTab(tab){activeTab=tab;searchQ='';renderAll();}
+function renderAll(){renderSidebar();renderMain();}
+
+// ── INIT ──────────────────────────────────────────────────────
+const SEED_DATA={
+  pets:[{
+    id:'bambang',name:'Bambang',emoji:'🐱',bgColor:'#faeeda',photo:'',
+    species:'Cat',breed:'Domestic Shorthair',birthdate:'2022-12-01',
+    sex:'Male, spayed',microchip:'',vet:'Drh. Tania',insurance:'',
+    conditions:['flu, need monitor for nystagmus.'],
+    vaccinations:[{id:'vax1',name:'Unknown — 1 dose only',
+      description:'Incomplete series — follow up with Dr. Tania to confirm vaccine type and next dose schedule',
+      dateGiven:'',nextDue:'',vet:'Dr. Tania · Petologi Vet Center',
+      notes:'Only one dose received to date.'}],
+    medications:[{id:'med1',name:'Flu meds',dosage:'1 pill, 2 times a day',
+      frequency:'Monthly',status:'active',startDate:'2026-04-06',endDate:'',purpose:''}],
+    vetVisits:[
+      {id:'visit1',date:'',type:'checkup',vet:'Dr. Tania',clinic:'Petologi Vet Center',
+        weight:'',weightUnit:'kg',summary:'Received first (and only) vaccine dose.',
+        followUp:'Schedule booster and confirm vaccine type with Dr. Tania.'},
+      {id:'visit2',date:'2026-03-30',type:'sick',vet:'Drh Tania',clinic:'Petology Vet Center',
+        weight:'5.8',weightUnit:'kg',
+        summary:'Cant open eyes, swelling, redness, no injury on cornea area. Susp for infection related to his Flu',
+        followUp:'see Vet Ophtamologist (drh Viska) on 3/4 2026'},
+      {id:'visit3',date:'2026-04-03',type:'checkup',vet:'Drh Viska',clinic:'Petology Vet Center',
+        weight:'5.8',weightUnit:'kg',
+        summary:'No injuries found. Eyedrops helps. Susp viral virus infection related to his Flu.',
+        followUp:'Return in 14 days to eyes checkup'},
+      {id:'visit4',date:'2026-04-06',type:'emergency',vet:'Drh Tania',clinic:'Petology Vet Center',
+        weight:'5.8',weightUnit:'kg',
+        summary:'Nystagmus. Blood test result and head xray show early infection and some thing found in inner ear area. Susp for Inner Ear Infection.',
+        followUp:'Admitted until better, until 10/4 2026'},
+      {id:'visit5',date:'2026-04-17',type:'checkup',vet:'Drh Viska',clinic:'Petology Vet Center',
+        weight:'5.9',weightUnit:'kg',
+        summary:'Eyes getting better, no redness, swelling, injury or infection. No sign of limb or nystagmus either.',
+        followUp:'no need to give an eyedrops again'}
+    ],
+    weightLogs:[],
+    parasites:[],
+    healthNotes:[{id:'note1',date:'2026-04-25',type:'normal',
+      text:'Health log created. Bambang is 3.5 years old, male domestic shorthair. Primary vet: Dr. Tania at Petologi Vet Center. Vaccination incomplete — only one dose on record. Microchip not yet registered.'}],
+    contacts:[{id:'c1',type:'Primary vet',name:'Dr. Tania',phone:'',hours:'',notes:'Petologi Vet Center'}]
+  }],
+  activePetId:'bambang'
+};
+
+// ── AUTH + BOOT ───────────────────────────────────────────────
+let cacheHadData = false;   // set true at boot if local cache already had pets
+
+function ensureSeedAndMigrate() {
+  if(!state.pets || state.pets.length===0) state = JSON.parse(JSON.stringify(SEED_DATA));
+  state.pets.forEach(p=>{ if(!p.parasites) p.parasites=[]; });
+  if(!state.activePetId && state.pets.length) state.activePetId = state.pets[0].id;
+}
+
+function showApp() {
+  document.getElementById('authGate').style.display = 'none';
+  document.getElementById('appShell').style.display = '';
+  applyDark();
+  renderAll();
+}
+
+async function sendMagicLink() {
+  const email = document.getElementById('authEmail').value.trim();
+  const msg = document.getElementById('authMsg');
+  const btn = document.getElementById('authSendBtn');
+  if(!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+    msg.className='auth-msg err'; msg.textContent='Please enter a valid email address.'; return;
+  }
+  if(!sb) { msg.className='auth-msg err'; msg.textContent='Cloud service unavailable. Try the offline option below.'; return; }
+  btn.disabled = true; btn.textContent = 'Sending…';
+  msg.className='auth-msg'; msg.textContent='';
+  try {
+    const { error } = await sb.auth.signInWithOtp({
+      email,
+      options: { emailRedirectTo: window.location.href.split('#')[0] }
+    });
+    if(error) throw error;
+    msg.className='auth-msg ok';
+    msg.textContent='Check your inbox — tap the link in the email to sign in. You can close this tab; the link opens the app.';
+    btn.textContent = 'Link sent ✓';
+  } catch(e) {
+    console.error(e);
+    msg.className='auth-msg err';
+    msg.textContent = 'Couldn\u2019t send the link: ' + (e?.message || 'unknown error');
+    btn.disabled = false; btn.textContent = 'Email me a sign-in link';
+  }
+}
+
+function useOfflineMode() {
+  offlineMode = true;
+  ensureSeedAndMigrate();
+  showApp();
+  showSync('Offline mode — this device only', '', 4000);
+}
+
+async function onSignedIn(user) {
+  currentUser = user;
+  document.getElementById('authGate').style.display = 'none';
+  // Pull cloud copy
+  const cloud = await pullFromCloud();
+  const localHasData = cacheHadData && state.pets && state.pets.length>0;
+
+  if(cloud && cloud.pets && cloud.pets.length>0) {
+    // Cloud is source of truth
+    state = cloud;
+    ensureSeedAndMigrate();
+    syncReady = true;
+    showApp();
+    showSync('Synced', 'ok', 1500);
+  } else if(cloud === undefined) {
+    // Cloud unreachable — show local cache, will retry on next save
+    ensureSeedAndMigrate();
+    syncReady = false;
+    showApp();
+  } else {
+    // Cloud empty (first time on this account). Migrate local data up if present.
+    if(localHasData) {
+      ensureSeedAndMigrate();
+      syncReady = true;
+      showApp();
+      await pushToCloud();
+      showSync('Your existing data is now synced', 'ok', 3000);
+    } else {
+      ensureSeedAndMigrate();   // fresh account → seed
+      syncReady = true;
+      showApp();
+      await pushToCloud();
+    }
+  }
+}
+
+async function boot() {
+  loadState();              // instant cache load (state + darkMode)
+  cacheHadData = !!(state.pets && state.pets.length>0);
+  const ok = initSupabase();
+
+  if(!ok) {
+    // Library failed to load — fall back to local-only, no gate
+    document.getElementById('authSub').textContent = 'Cloud service couldn\u2019t load. You can still use the app offline on this device.';
+    return; // gate stays; user taps "Continue offline"
+  }
+
+  // Handle the magic-link return (tokens land in URL hash) + existing session
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    if(session && session.user) {
+      await onSignedIn(session.user);
+    }
+  } catch(e) { console.error(e); }
+
+  // React to auth changes (e.g. clicking the emailed link)
+  sb.auth.onAuthStateChange((event, session) => {
+    if(session && session.user && !currentUser) {
+      onSignedIn(session.user);
+    }
+  });
+}
+
+async function signOut() {
+  if(sb && currentUser) { try { await sb.auth.signOut(); } catch(e){} }
+  location.reload();
+}
+
+function accountAction() {
+  closeExportMenu();
+  if(offlineMode || !currentUser) {
+    // Offline: offer to sign in for sync
+    if(confirm('Sign in to sync your data across devices? Your current data will be uploaded to your account.')) location.reload();
+  } else {
+    if(confirm('Sign out of '+(currentUser.email||'your account')+' on this device? Your data stays safe in the cloud.')) signOut();
+  }
+}
+
+function refreshAccountMenu() {
+  const t=document.getElementById('accountMenuTitle'), s=document.getElementById('accountMenuSub');
+  if(!t||!s) return;
+  if(offlineMode || !currentUser) { t.textContent='Sign in to sync'; s.textContent='Offline — this device only'; }
+  else { t.textContent='Sign out'; s.textContent=currentUser.email||'Synced to cloud'; }
+}
+
+boot();
+
+// Esc closes any open overlay
+document.addEventListener('keydown', e => {
+  if(e.key!=='Escape') return;
+  if(document.getElementById('lightbox').classList.contains('open')) { closeLightbox(); return; }
+  if(document.getElementById('modalOverlay').classList.contains('open')) closeModal();
+  closeExportMenu();
+});
+// Click outside closes export menu
+document.addEventListener('click', e => {
+  const menu = document.getElementById('exportMenu');
+  if(menu && menu.classList.contains('open') && !menu.contains(e.target) && !e.target.closest('button')?.getAttribute('onclick')?.includes('toggleExportMenu')) {
+    closeExportMenu();
+  }
+});
+</script>
+</body>
+</html>
